@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "InventoryManager.h"
 #include "InventoryManagerDlg.h"
+#include "CSettingsDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
