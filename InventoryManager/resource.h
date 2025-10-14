@@ -26,8 +26,8 @@
 #define IDC_BUTTON_PLUS_10              1017
 #define IDC_STATIC_EXPECTED_STOCK       1018
 #define IDC_BUTTON_ORDER                1020
-#define IDC_BUTTON2                     1021
-#define IDC_EDIT_NEW_STOCK              1021
+#define IDC_EDIT_NEW_STOCK              1021   // (유지)
+#define IDC_BUTTON2                     1043   // ★ 기존 1021과 중복 → 1043으로 변경
 #define IDC_BUTTON3                     1022
 #define IDC_STATIC_OPTION_CODE_EDIT     1024
 #define IDC_STATIC_PRODUCT_NAME_EDIT    1025
@@ -42,18 +42,75 @@
 #define IDC_EDIT_BASE_STOCK             1035
 #define IDC_EDIT_PRICE                  1036
 #define IDC_EDIT_DESCRIPTION            1037
-#define IDC_EDIT_DESCRIPTION2           1038
 #define IDC_EDIT_IMAGE_URL              1038
-#define IDC_EDIT_DANGER                 1038
-#define IDC_EDIT_WARNING                1039
+#define IDC_BUTTON1                     1039
+#define IDC_EDIT_SEARCH                 1040   // ★ 기존 1038과 중복 → 1040으로 변경
+#define IDC_BTN_SEARCH                  1041   // ★ 기존 1039과 중복 → 1041로 변경
 
 // Next default values for new objects
-// 
+//
+#ifdef APSTUDIO_INVOKED
+#ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_COMMAND_VALUE         32771
+#define _APS_NEXT_CONTROL_VALUE         1044  // ★ 최신 값에 맞춰 증가
+#define _APS_NEXT_SYMED_VALUE           105
+#endif
+#endif
+//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++에서 생성한 포함 파일입니다.
+// InventoryManager.rc에서 사용되고 있습니다.
+//
+#define IDD_INVENTORYMANAGER_DIALOG     102
+#define IDD_DIALOG_EDIT_STOCK1          104
+#define IDR_MAINFRAME                   128
+#define IDD_DIALOG_ORDER                130
+#define IDD_DIALOG_EDIT_STOCK           132
+#define IDD_ADD_PRODUCT                 136
+#define IDC_TAB_MAIN                    1000
+#define IDC_EDIT_LOG                    1002
+#define IDC_STATIC_LOG_LABEL            1004
+#define IDC_BUTTON_REFRESH              1005
+#define IDC_BUTTON_CLEAR_LOG            1006
+#define IDC_LIST_INVENTORY              1008
+#define IDC_STATIC_ORDER_INFO           1009
+#define IDC_STATIC_OPTION_CODE          1010
+#define IDC_STATIC_PRODUCT_NAME         1011
+#define IDC_STATIC_CURRENT_STOCK        1012
+#define IDC_EDIT_ORDER_QUANTITY         1013
+#define IDC_BUTTON_MINUS_10             1014
+#define IDC_BUTTON_MINUS_5              1015
+#define IDC_BUTTON_PLUS_5               1016
+#define IDC_BUTTON_PLUS_10              1017
+#define IDC_STATIC_EXPECTED_STOCK       1018
+#define IDC_BUTTON_ORDER                1020
+#define IDC_EDIT_NEW_STOCK              1021   // (유지)
+#define IDC_BUTTON2                     1043   // ★ 기존 1021과 중복 → 1043으로 변경
+#define IDC_BUTTON3                     1022
+#define IDC_STATIC_OPTION_CODE_EDIT     1024
+#define IDC_STATIC_PRODUCT_NAME_EDIT    1025
+#define IDC_STATIC_CURRENT_STOCK_EDIT   1026
+#define IDC_EDIT_PRODUCTNAME            1028
+#define IDC_COMBO_COLOR                 1029
+#define IDC_COMBO_BRAND                 1030
+#define IDC_COMBO_SIZE                  1031
+#define IDC_COMBO_WERE                  1032
+#define IDC_PRODUCT_NUM                 1034
+#define IDC_EDIT_BASE_STOCK             1035
+#define IDC_EDIT_PRICE                  1036
+#define IDC_EDIT_DESCRIPTION            1037
+#define IDC_EDIT_IMAGE_URL              1038
+#define IDC_BUTTON1                     1039
+#define IDC_EDIT_SEARCH                 1040   // ★ 기존 1038과 중복 → 1040으로 변경
+#define IDC_BTN_SEARCH                  1041   // ★ 기존 1039과 중복 → 1041로 변경
+
+// Next default values for new objects
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        140
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1039
+#define _APS_NEXT_CONTROL_VALUE         1044  // ★ 최신 값에 맞춰 증가
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
