@@ -198,7 +198,6 @@
     <ClInclude Include="CAddProductDlg.h" />
     <ClInclude Include="CEditStockDlg.h" />
     <ClInclude Include="COrderDlg.h" />
-    <ClInclude Include="CSettingsDlg.h" />
     <ClInclude Include="DBManager.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InventoryManager.h" />
@@ -211,7 +210,6 @@
     <ClCompile Include="CAddProductDlg.cpp" />
     <ClCompile Include="CEditStockDlg.cpp" />
     <ClCompile Include="COrderDlg.cpp" />
-    <ClCompile Include="CSettingsDlg.cpp" />
     <ClCompile Include="DBManager.cpp" />
     <ClCompile Include="InventoryManager.cpp" />
     <ClCompile Include="InventoryManagerDlg.cpp" />
