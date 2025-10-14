@@ -8,6 +8,7 @@
 #define IDD_DIALOG_ORDER                130
 #define IDD_DIALOG_EDIT_STOCK           132
 #define IDD_ADD_PRODUCT                 136
+#define IDC_BUTTON_SETTINGS             138
 #define IDC_TAB_MAIN                    1000
 #define IDC_EDIT_LOG                    1002
 #define IDC_STATIC_LOG_LABEL            1004
@@ -33,6 +34,7 @@
 #define IDC_STATIC_CURRENT_STOCK_EDIT   1026
 #define IDC_EDIT_PRODUCTNAME            1028
 #define IDC_COMBO_COLOR                 1029
+#define IDD_SETTINGS_DIALOG             1029
 #define IDC_COMBO_BRAND                 1030
 #define IDC_COMBO_SIZE                  1031
 #define IDC_COMBO_WERE                  1032
@@ -106,7 +108,7 @@
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_RESOURCE_VALUE        140
 #define _APS_NEXT_COMMAND_VALUE         32771
 #define _APS_NEXT_CONTROL_VALUE         1044  // ★ 최신 값에 맞춰 증가
 #define _APS_NEXT_SYMED_VALUE           105

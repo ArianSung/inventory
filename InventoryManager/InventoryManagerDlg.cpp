@@ -8,6 +8,7 @@
 #include "afxdialogex.h"
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
+#include "CSettingsDlg.h" 
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -212,23 +213,60 @@ void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 
 void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 {
-    int nSelectedTab = m_tabMain.GetCurSel();
-    if (nSelectedTab != m_nCurrentTab)
-    {
-        m_nCurrentTab = nSelectedTab;
+	int nSelectedTab = m_tabMain.GetCurSel();
 
-        CString strTabName;
-        switch (nSelectedTab) {
-        case 0: strTabName = _T("재고현황"); break;
-        case 1: strTabName = _T("통계"); break;
-        case 2: strTabName = _T("설정"); break;
-        default: strTabName = _T("알 수 없음"); break;
-        }
+	// '설정' 탭(인덱스 2)이 선택된 경우
+	if (nSelectedTab == 2)
+	{
+		CSettingsDlg dlg;
 
-        CString strLog; strLog.Format(_T("📂 [%s] 탭으로 이동"), strTabName);
-        AddLog(strLog);
-    }
-    *pResult = 0;
+		// 현재 기준 값을 설정 대화상자로 전달
+		dlg.m_nDangerValue = m_nDangerThreshold;
+		dlg.m_nWarningValue = m_nWarningThreshold;
+
+		// 대화상자를 띄우고, '확인' 버튼을 눌렀는지 확인
+		if (dlg.DoModal() == IDOK)
+		{
+			// 입력 값 유효성 검사
+			if (dlg.m_nDangerValue >= dlg.m_nWarningValue)
+			{
+				AfxMessageBox(_T("위험 재고 기준은 주의 재고 기준보다 작아야 합니다."));
+			}
+			else
+			{
+				// 새로 입력된 값으로 멤버 변수 업데이트
+				m_nDangerThreshold = dlg.m_nDangerValue;
+				m_nWarningThreshold = dlg.m_nWarningValue;
+
+				AddLog(_T("⚙️ 재고 상태 기준이 변경되었습니다. 목록을 새로고침합니다."));
+
+				// 변경된 기준으로 목록 새로고침
+				RefreshInventoryData();
+			}
+		}
+
+		// ✨ 중요: 설정 창이 닫힌 후, 다시 이전 탭으로 포커스를 돌려줍니다.
+		m_tabMain.SetCurSel(m_nCurrentTab);
+	}
+	else if (nSelectedTab != m_nCurrentTab) // 다른 탭이 선택된 경우 (기존 로직)
+	{
+		m_nCurrentTab = nSelectedTab;
+
+		// 탭별 로그 메시지
+		CString strTabName;
+		switch (nSelectedTab)
+		{
+		case 0: strTabName = _T("재고현황"); break;
+		case 1: strTabName = _T("통계"); break;
+		default: strTabName = _T("알 수 없음"); break;
+		}
+
+		CString strLog;
+		strLog.Format(_T("📂 [%s] 탭으로 이동"), strTabName);
+		AddLog(strLog);
+	}
+
+	*pResult = 0;
 }
 
 // DB 연결
