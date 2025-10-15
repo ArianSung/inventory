@@ -6,6 +6,8 @@
 #include "framework.h"
 #include "InventoryManager.h"
 #include "InventoryManagerDlg.h"
+#include "CStatsDlg.h"
+#include "CSettingsDlg.h" // ✅ CSettingsDlg 헤더 포함
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -91,4 +93,6 @@ BOOL CInventoryManagerApp::InitInstance()
 	// 반환합니다.
 	return FALSE;
 }
+
+
 
