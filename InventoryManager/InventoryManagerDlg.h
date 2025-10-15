@@ -11,7 +11,7 @@ class CStatsDlg;
 
 // ===== 검색 캐시용 행 구조 =====
 struct DisplayRow {
-    CString col0, col1, col2, col3, col4, col5, col6;
+    CString col0, col1, col2, col3, col4, col5, col6, col7;
 };
 
 // CInventoryManagerDlg 대화 상자
@@ -43,6 +43,7 @@ private:
     // [ADD] 통계 탭 내장 표시를 위한 멤버
     CStatsDlg* m_pStatsDlg = nullptr;  // 통계 자식 다이얼로그 포인터(한 번만 생성)
     void ShowTabPage(int idx);         // 탭별 UI 토글(재고/통계/설정)
+    void ApplyFiltersAndSearch(); // 필터와 검색을 모두 적용하는 함수
 
 public:
     // =========================
@@ -121,10 +122,14 @@ public:
 
     void SnapshotDisplayToCache();
     void ShowRowsFromCache(const std::vector<DisplayRow>& rows);
-    void ApplySearchFilter(const CString& keywordRaw);
+    //void ApplySearchFilter(const CString& keywordRaw);
     afx_msg void OnBnClickedBtnSearch();
+    afx_msg void OnSelchangeComboFilter();
 
 protected:
     // (선택) 엔터키로 검색
     virtual BOOL PreTranslateMessage(MSG* pMsg) override;
+public:
+    CComboBox m_comboFilterBrand;
+    CComboBox m_comboFilterCategory;
 };
