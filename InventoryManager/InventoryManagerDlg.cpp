@@ -511,10 +511,10 @@ void CInventoryManagerDlg::UpdateInventoryList()
         m_listInventory.SetItemText(nIndex, 7, strStock);
 
         m_listInventory.SetItemData(nIndex, (DWORD_PTR)item.nOptionID);
-
-        m_listInventory.SetRedraw(TRUE);
-        m_listInventory.Invalidate();
-        AddLog(_T("✅ 리스트 업데이트 완료"));
+        nAddedCount++;
+        //m_listInventory.SetRedraw(TRUE);
+        //m_listInventory.Invalidate();
+        //AddLog(_T("✅ 리스트 업데이트 완료"));
     }
 
     m_listInventory.SetRedraw(TRUE);
