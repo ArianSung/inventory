@@ -9,6 +9,8 @@
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
 #include "CStatsDlg.h"
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -116,6 +118,31 @@ BOOL CInventoryManagerDlg::OnInitDialog()
         AddLog(_T("❌ DB 연결 실패. 오프라인 모드로 동작합니다."));
     }
 
+    if (!m_pStatsDlg) {
+        m_pStatsDlg = new CStatsDlg();
+        m_pStatsDlg->Create(IDD_STATS_DIALOG, this);           // 자식으로 만들기
+        m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);     // DB 주입
+
+        // 플레이스홀더 위치/크기에 맞춰서 배치
+        CRect rc;
+        GetDlgItem(IDC_PLACE_STATS)->GetWindowRect(&rc);
+        ScreenToClient(&rc);
+        m_pStatsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
+            SWP_NOZORDER | SWP_NOACTIVATE);
+
+        m_pStatsDlg->ShowWindow(SW_HIDE);  // 시작은 숨김
+    }
+    // [ADD] 통계 호스트(Static) 처음엔 숨김 + 클릭 못 하게
+    if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS)) {
+        pHost->ShowWindow(SW_HIDE);
+        pHost->EnableWindow(FALSE);
+        pHost->SetWindowText(_T("")); // (선택) "Static" 글자 지우기
+    }
+
+
+    // [EDIT] 현재 탭에 맞춰 표시/숨김
+    ShowTabPage(m_tabMain.GetCurSel());
+
     return TRUE;
 }
 
@@ -209,57 +236,13 @@ void CInventoryManagerDlg::OnBnClickedButtonRefresh()
         }
     }
 }
-
-void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
+void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 {
-    int nSelectedTab = m_tabMain.GetCurSel();
-    if (nSelectedTab != m_nCurrentTab)
-    {
-        m_nCurrentTab = nSelectedTab;
-
-        CString strTabName;
-        switch (nSelectedTab) {
-        case 0: strTabName = _T("재고현황"); break;
-        case 1: strTabName = _T("통계");     break;
-        case 2: strTabName = _T("설정");     break;
-        default: strTabName = _T("알 수 없음"); break;
-        }
-
-        CString strLog; strLog.Format(_T("📂 [%s] 탭으로 이동"), strTabName);
-        AddLog(strLog);
-
-        // ============================
-        // [ADD] 통계 탭이면 새 창 띄우기
-        // ============================
-        if (nSelectedTab == 1)
-        {
-            // m_pStatsDlg 는 CInventoryManagerDlg 의 멤버: CStatsDlg* m_pStatsDlg = nullptr;
-            // CStatsDlg 헤더 include 필요: #include "CStatsDlg.h"
-            if (m_pStatsDlg == nullptr || !::IsWindow(m_pStatsDlg->GetSafeHwnd()))
-            {
-                m_pStatsDlg = new CStatsDlg();
-                // 메인 DB 포인터/연결상태 전달(조회만 하므로 공유 OK)
-                m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);
-
-                // 모달리스 생성
-                if (!m_pStatsDlg->Create(IDD_STATS_DIALOG, this)) {
-                    AddLog(_T("❌ 통계창 생성 실패"));
-                    delete m_pStatsDlg;
-                    m_pStatsDlg = nullptr;
-                }
-                else {
-                    m_pStatsDlg->ShowWindow(SW_SHOW);
-                }
-            }
-            else {
-                // 이미 떠 있으면 앞으로 가져오기
-                m_pStatsDlg->ShowWindow(SW_SHOW);
-                m_pStatsDlg->SetForegroundWindow();
-            }
-        }
-    }
+    m_nCurrentTab = m_tabMain.GetCurSel();
+    ShowTabPage(m_nCurrentTab);
     *pResult = 0;
 }
+
 
 
 // DB 연결
@@ -827,3 +810,37 @@ void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
 
     ShowRowsFromCache(filtered);
 }
+
+// [ADD] 탭별 UI 토글 구현
+void CInventoryManagerDlg::ShowTabPage(int idx)
+{
+    const bool showInventory = (idx == 0);
+    const bool showStats = (idx == 1);
+    // const bool showSettings  = (idx == 2); // 필요 시 사용
+
+    // 재고 리스트 보이기/숨기기 (필요한 컨트롤들만 토글해도 됨)
+    m_listInventory.ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+
+    // 통계 다이얼로그 보이기/숨기기
+    if (m_pStatsDlg) {
+        if (showStats) {
+            // 플레이스홀더 위치에 맞춰 배치
+            CRect rc;
+            GetDlgItem(IDC_PLACE_STATS)->GetWindowRect(&rc);
+            ScreenToClient(&rc);
+            m_pStatsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
+                SWP_NOZORDER | SWP_NOACTIVATE);
+
+            // DB 상태 주입 + 데이터 로드
+            m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);
+            // m_pStatsDlg->Reload();  // Reload가 있으면 이 한 줄로 대체
+
+            m_pStatsDlg->Reload();
+            m_pStatsDlg->ShowWindow(SW_SHOW);
+        }
+        else {
+            m_pStatsDlg->ShowWindow(SW_HIDE);
+        }
+    }
+}
+

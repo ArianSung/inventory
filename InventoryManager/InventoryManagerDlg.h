@@ -1,12 +1,12 @@
 ﻿// InventoryManagerDlg.h: 헤더 파일
 //
-
 #pragma once
 
 #include <vector>
 #include "DBManager.h"
 #include "CEditStockDlg.h"
 
+// [ADD] 통계 다이얼로그 전방 선언
 class CStatsDlg;
 
 // ===== 검색 캐시용 행 구조 =====
@@ -17,12 +17,10 @@ struct DisplayRow {
 // CInventoryManagerDlg 대화 상자
 class CInventoryManagerDlg : public CDialogEx
 {
-    // 생성입니다.
 public:
     CInventoryManagerDlg(CWnd* pParent = nullptr); // 표준 생성자입니다.
     virtual ~CInventoryManagerDlg();               // 소멸자입니다.
-    CStatsDlg* m_pStatsDlg = nullptr;
-    // 대화 상자 데이터입니다.
+
 #ifdef AFX_DESIGN_TIME
     enum { IDD = IDD_INVENTORYMANAGER_DIALOG };
 #endif
@@ -40,6 +38,11 @@ protected:
     afx_msg HCURSOR OnQueryDragIcon();
     afx_msg void OnClose();
     DECLARE_MESSAGE_MAP()
+
+private:
+    // [ADD] 통계 탭 내장 표시를 위한 멤버
+    CStatsDlg* m_pStatsDlg = nullptr;  // 통계 자식 다이얼로그 포인터(한 번만 생성)
+    void ShowTabPage(int idx);         // 탭별 UI 토글(재고/통계/설정)
 
 public:
     // =========================
