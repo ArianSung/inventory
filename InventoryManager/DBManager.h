@@ -84,7 +84,7 @@ public:
 	// ========================================
 	static CDBManager* GetInstance();
 	static void DestroyInstance();
-
+	BOOL SelectToRows(const CString& sql, std::vector<std::vector<CString>>& rows);
 	// ========================================
 	// 연결 관리
 	// ========================================
