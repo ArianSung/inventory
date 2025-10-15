@@ -433,6 +433,7 @@ void CInventoryManagerDlg::InitInventoryList()
     dwStyle |= LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES;
     m_listInventory.SetExtendedStyle(dwStyle);
 
+    // 8개의 컬럼을 순서대로 생성합니다.
     m_listInventory.InsertColumn(0, _T("상태"), LVCFMT_CENTER, 60);
     m_listInventory.InsertColumn(1, _T("품번"), LVCFMT_LEFT, 150);
     m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 200);
@@ -446,7 +447,7 @@ void CInventoryManagerDlg::InitInventoryList()
     CString strDebug; strDebug.Format(_T("📋 최종 컬럼 개수: %d"), nFinalColCount);
     AddLog(strDebug);
 
-    if (nFinalColCount == 7) AddLog(_T("✅ 재고 리스트 초기화 완료"));
+    if (nFinalColCount == 8) AddLog(_T("✅ 재고 리스트 초기화 완료"));
     else                     AddLog(_T("❌ 재고 리스트 초기화 실패 (컬럼 개수 불일치)"));
 }
 
@@ -499,24 +500,21 @@ void CInventoryManagerDlg::UpdateInventoryList()
             continue;
         }
 
+        // 8개 컬럼에 순서대로 데이터를 채웁니다.
         m_listInventory.SetItemText(nIndex, 1, item.strOptionCode);
         m_listInventory.SetItemText(nIndex, 2, item.strProductName);
         m_listInventory.SetItemText(nIndex, 3, item.strBrandName);
         m_listInventory.SetItemText(nIndex, 4, item.strCategoryName);
         m_listInventory.SetItemText(nIndex, 5, item.strColorName);
         m_listInventory.SetItemText(nIndex, 6, item.strSizeName);
-
         CString strStock; strStock.Format(_T("%d"), item.nStock);
         m_listInventory.SetItemText(nIndex, 7, strStock);
 
         m_listInventory.SetItemData(nIndex, (DWORD_PTR)item.nOptionID);
 
-        nAddedCount++;
-        if (i < 5) {
-            CString strItemLog;
-            strItemLog.Format(_T("  ✓ [%d] %s - %s"), nIndex, item.strOptionCode, item.strProductName);
-            AddLog(strItemLog);
-        }
+        m_listInventory.SetRedraw(TRUE);
+        m_listInventory.Invalidate();
+        AddLog(_T("✅ 리스트 업데이트 완료"));
     }
 
     m_listInventory.SetRedraw(TRUE);
@@ -778,19 +776,21 @@ void CInventoryManagerDlg::SnapshotDisplayToCache()
 {
     m_allRowsDisplay.clear();
     const int rowCount = m_listInventory.GetItemCount();
+    if (rowCount == 0) return;
 
     m_allRowsDisplay.reserve(rowCount);
     for (int i = 0; i < rowCount; ++i)
     {
         DisplayRow r;
-        r.col0 = m_listInventory.GetItemText(i, 0); // 상태
-        r.col1 = m_listInventory.GetItemText(i, 1); // 품번
-        r.col2 = m_listInventory.GetItemText(i, 2); // 상품명
-        r.col3 = m_listInventory.GetItemText(i, 3); // 브랜드
-        r.col4 = m_listInventory.GetItemText(i, 4); // 카테고리
-        r.col5 = m_listInventory.GetItemText(i, 5); // 색상
-        r.col6 = m_listInventory.GetItemText(i, 6); // 사이즈
-        r.col7 = m_listInventory.GetItemText(i, 7); // 재고
+        // 8개 컬럼 데이터를 모두 빠짐없이 복사합니다.
+        r.col0 = m_listInventory.GetItemText(i, 0);
+        r.col1 = m_listInventory.GetItemText(i, 1);
+        r.col2 = m_listInventory.GetItemText(i, 2);
+        r.col3 = m_listInventory.GetItemText(i, 3);
+        r.col4 = m_listInventory.GetItemText(i, 4);
+        r.col5 = m_listInventory.GetItemText(i, 5);
+        r.col6 = m_listInventory.GetItemText(i, 6);
+        r.col7 = m_listInventory.GetItemText(i, 7);
         m_allRowsDisplay.push_back(r);
     }
 }
@@ -803,6 +803,7 @@ void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows
     for (const auto& r : rows)
     {
         int i = m_listInventory.InsertItem(m_listInventory.GetItemCount(), r.col0);
+        // 8개 컬럼 데이터를 모두 빠짐없이 화면에 표시합니다.
         m_listInventory.SetItemText(i, 1, r.col1);
         m_listInventory.SetItemText(i, 2, r.col2);
         m_listInventory.SetItemText(i, 3, r.col3);

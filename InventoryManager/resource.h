@@ -49,9 +49,9 @@
 #define IDC_STATIC_SALES_MONTH_LABEL    1047
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
-#define IDC_COMBO_FILTER_BRAND          1052
-#define IDC_COMBO2                      1053
-#define IDC_COMBO_FILTER_CATEGORY       1053
+#define IDC_COMBO_FILTER_BRAND          3052
+#define IDC_COMBO2                      3053
+#define IDC_COMBO_FILTER_CATEGORY       3053
 #define IDD_STATS_DIALOG                2000
 #define IDC_LIST_STATS_ORDERS           3200
 #define IDC_LIST_STATS_BRAND            3201
