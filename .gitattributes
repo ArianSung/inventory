@@ -4,6 +4,17 @@
 * text=auto
 
 ###############################################################################
+# MFC RC 파일 인코딩 설정
+###############################################################################
+# MFC RC 파일들을 UTF-16LE로 처리
+*.rc text working-tree-encoding=UTF-16LE-BOM
+*.rc2 text working-tree-encoding=UTF-16LE-BOM
+resource.h text
+
+# APS 파일은 바이너리로 처리
+*.aps binary
+
+###############################################################################
 # Set default behavior for command prompt diff.
 #
 # This is need for earlier builds of msysgit that does not have it on by
