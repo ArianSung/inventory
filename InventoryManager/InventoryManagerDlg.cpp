@@ -9,6 +9,7 @@
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
 #include "CStatsDlg.h"
+#include <algorithm> 
 
 
 #ifdef _DEBUG
@@ -37,6 +38,8 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
     , m_bAutoRefresh(TRUE)      // 자동 새로고침 활성화
     , m_pDBManager(nullptr)
     , m_bDBConnected(FALSE)
+    , m_nSortColumn(7)          // 기본 정렬: 7번 '재고' 컬럼
+    , m_bSortAscending(true)    // 기본 정렬: 오름차순
 {
     m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -74,6 +77,8 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // 검색 버튼
     ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
     ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
+    ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
+
 END_MESSAGE_MAP()
 
 
@@ -967,3 +972,62 @@ void CInventoryManagerDlg::ApplyFiltersAndSearch()
     // 5. 최종 결과를 화면에 표시
     ShowRowsFromCache(filteredRows);
 }
+
+// =========================
+// 🔎 리스트 컬럼 클릭 (정렬)
+// =========================
+void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+    int nColumn = pNMLV->iSubItem; // 사용자가 클릭한 컬럼의 인덱스
+
+    // 같은 컬럼을 다시 클릭하면 정렬 순서 변경 (오름차순 <-> 내림차순)
+    if (nColumn == m_nSortColumn) {
+        m_bSortAscending = !m_bSortAscending;
+    }
+    // 다른 컬럼을 클릭하면 해당 컬럼으로 정렬 대상을 바꾸고, 기본은 오름차순
+    else {
+        m_nSortColumn = nColumn;
+        m_bSortAscending = true;
+    }
+
+    // std::sort에 사용할 람다(lambda) 비교 함수 정의
+    auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
+        CString strA, strB;
+
+        // 클릭된 컬럼(m_nSortColumn)에 따라 비교할 데이터 선택
+        switch (m_nSortColumn) {
+        case 0: strA = a.col0; strB = b.col0; break; // 상태
+        case 1: strA = a.col1; strB = b.col1; break; // 품번
+        case 2: strA = a.col2; strB = b.col2; break; // 상품명
+        case 3: strA = a.col3; strB = b.col3; break; // 브랜드
+        case 4: strA = a.col4; strB = b.col4; break; // 카테고리
+        case 5: strA = a.col5; strB = b.col5; break; // 색상
+        case 6: strA = a.col6; strB = b.col6; break; // 사이즈
+        case 7: { // '재고' 컬럼은 숫자로 비교
+            int valA = _ttoi(a.col7);
+            int valB = _ttoi(b.col7);
+            if (m_bSortAscending) return valA < valB;
+            else return valA > valB;
+        }
+        default: return false; // 예외 처리
+        }
+
+        // 문자열 컬럼 비교
+        if (m_bSortAscending) {
+            return strA.Compare(strB) < 0; // 오름차순
+        }
+        else {
+            return strA.Compare(strB) > 0; // 내림차순
+        }
+        };
+
+    // 준비된 람다 함수를 이용해 캐시(m_allRowsDisplay)를 정렬
+    std::sort(m_allRowsDisplay.begin(), m_allRowsDisplay.end(), sortLambda);
+
+    // 정렬된 캐시 데이터로 리스트 화면을 다시 그림
+    ShowRowsFromCache(m_allRowsDisplay);
+
+    *pResult = 0;
+}
+
