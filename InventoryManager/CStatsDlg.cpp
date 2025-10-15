@@ -221,3 +221,12 @@ void CStatsDlg::AutoSizeColumns(CListCtrl& list)
         list.SetColumnWidth(c, max(wc, wh) + 6);
     }
 }
+
+// [ADD]
+void CStatsDlg::Reload()
+{
+    InitLists();
+    LoadStats();
+}
+
+

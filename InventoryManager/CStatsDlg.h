@@ -15,7 +15,7 @@ public:
     virtual ~CStatsDlg();
 
     void InitDB(CDBManager* pDB, BOOL bConnected) { m_pDB = pDB; m_bDBConnected = bConnected; }
-
+    void Reload();
 #ifdef AFX_DESIGN_TIME
     enum { IDD = IDD_STATS_DIALOG };
 #endif
