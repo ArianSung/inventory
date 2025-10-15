@@ -11,6 +11,7 @@ class CStatsDlg;
 
 // ===== 검색 캐시용 행 구조 =====
 struct DisplayRow {
+    int nOptionID;
     CString col0, col1, col2, col3, col4, col5, col6, col7;
 };
 

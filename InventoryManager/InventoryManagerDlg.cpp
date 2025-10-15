@@ -788,6 +788,9 @@ void CInventoryManagerDlg::SnapshotDisplayToCache()
     for (int i = 0; i < rowCount; ++i)
     {
         DisplayRow r;
+        // [수정] GetItemData를 사용해 Option ID를 캐시에 저장
+        r.nOptionID = (int)m_listInventory.GetItemData(i);
+
         // 8개 컬럼 데이터를 모두 빠짐없이 복사합니다.
         r.col0 = m_listInventory.GetItemText(i, 0);
         r.col1 = m_listInventory.GetItemText(i, 1);
@@ -800,7 +803,6 @@ void CInventoryManagerDlg::SnapshotDisplayToCache()
         m_allRowsDisplay.push_back(r);
     }
 }
-
 void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows)
 {
     m_listInventory.SetRedraw(FALSE);
@@ -817,6 +819,9 @@ void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows
         m_listInventory.SetItemText(i, 5, r.col5);
         m_listInventory.SetItemText(i, 6, r.col6);
         m_listInventory.SetItemText(i, 7, r.col7);
+
+        // [수정] 캐시에서 가져온 Option ID를 다시 설정
+        m_listInventory.SetItemData(i, (DWORD_PTR)r.nOptionID);
     }
 
     m_listInventory.SetRedraw(TRUE);
