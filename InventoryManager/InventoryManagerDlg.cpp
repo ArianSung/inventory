@@ -56,6 +56,8 @@ void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_TAB_MAIN, m_tabMain);
     DDX_Control(pDX, IDC_EDIT_LOG, m_editLog);
     DDX_Control(pDX, IDC_LIST_INVENTORY, m_listInventory);
+    DDX_Control(pDX, IDC_COMBO_FILTER_BRAND, m_comboFilterBrand);
+    DDX_Control(pDX, IDC_COMBO_FILTER_CATEGORY, m_comboFilterCategory);
 }
 
 BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
@@ -70,6 +72,8 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BUTTON2, &CInventoryManagerDlg::OnBnClickedButton2)
     ON_BN_CLICKED(IDC_BUTTON3, &CInventoryManagerDlg::OnBnClickedButton3)
     ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // 검색 버튼
+    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
+    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
 END_MESSAGE_MAP()
 
 
@@ -109,6 +113,33 @@ BOOL CInventoryManagerDlg::OnInitDialog()
     // 재고 데이터 로드/표시/캐시
     if (m_bDBConnected)
     {
+        // 콤보 박스 초기화 (첫 항목으로 "전체" 추가)
+        m_comboFilterBrand.InsertString(0, _T("전체 브랜드"));
+        m_comboFilterBrand.SetCurSel(0); // 0번째 항목("전체 브랜드")을 기본으로 선택
+
+        m_comboFilterCategory.InsertString(0, _T("전체 카테고리"));
+        m_comboFilterCategory.SetCurSel(0);
+
+        // DB에서 브랜드 목록 가져와서 콤보 박스에 추가하기
+        std::vector<CString> vecBrands;
+        if (m_pDBManager->GetBrandList(vecBrands)) // DB매니저에게 브랜드 목록 요청
+        {
+            for (const auto& brand : vecBrands) // 가져온 목록을 하나씩
+            {
+                m_comboFilterBrand.AddString(brand); // 콤보 박스에 추가
+            }
+        }
+
+        // DB에서 카테고리 목록 가져와서 콤보 박스에 추가하기
+        std::vector<CString> vecCategories;
+        if (m_pDBManager->GetCategoryList(vecCategories)) // DB매니저에게 카테고리 목록 요청
+        {
+            for (const auto& category : vecCategories) // 가져온 목록을 하나씩
+            {
+                m_comboFilterCategory.AddString(category); // 콤보 박스에 추가
+            }
+        }
+
         LoadInventoryData();
         UpdateInventoryList();
         SnapshotDisplayToCache();
@@ -714,22 +745,27 @@ void CInventoryManagerDlg::OnBnClickedButton3()
 // =========================
 void CInventoryManagerDlg::OnBnClickedBtnSearch()
 {
-    CString q; m_editSearch.GetWindowText(q);
-    ApplySearchFilter(q);  // 캐시 기반 검색
+    //CString q; m_editSearch.GetWindowText(q);
+    //ApplySearchFilter(q);  // 캐시 기반 검색
+    ApplyFiltersAndSearch();
 }
 
 BOOL CInventoryManagerDlg::PreTranslateMessage(MSG* pMsg)
 {
     if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
     {
-        CWnd* f = GetFocus();
-        if (f && f->GetDlgCtrlID() == IDC_EDIT_SEARCH) {
-            CWnd* pBtn = GetDlgItem(IDC_BTN_SEARCH);
-            if (pBtn) pBtn->PostMessage(BM_CLICK);
+        if (GetFocus() && GetFocus()->GetDlgCtrlID() == IDC_EDIT_SEARCH)
+        {
+            ApplyFiltersAndSearch();
             return TRUE;
         }
     }
     return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CInventoryManagerDlg::OnSelchangeComboFilter()
+{
+    ApplyFiltersAndSearch(); // 핵심 함수 호출
 }
 
 // =========================
@@ -775,41 +811,41 @@ void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows
     m_listInventory.Invalidate();
 }
 
-void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
-{
-    CString q = keywordRaw; q.Trim();
-    if (q.IsEmpty()) {
-        ShowRowsFromCache(m_allRowsDisplay);
-        return;
-    }
-
-    const CString ql = ToLower(q);
-    std::vector<DisplayRow> filtered;
-    filtered.reserve(m_allRowsDisplay.size());
-
-    for (const auto& r : m_allRowsDisplay)
-    {
-        // 대상: 상태(0), 품번(1), 상품명(2), 브랜드(3), 색상(4), 사이즈(5)
-        const CString status = ToLower(r.col0);
-        const CString sku = ToLower(r.col1);
-        const CString name = ToLower(r.col2);
-        const CString brand = ToLower(r.col3);
-        const CString color = ToLower(r.col4);
-        const CString size = ToLower(r.col5);
-
-        bool match =
-            (sku.Find(ql) >= 0) ||
-            (name.Find(ql) >= 0) ||
-            (brand.Find(ql) >= 0) ||
-            (status.Find(ql) >= 0) ||
-            (color.Find(ql) >= 0) ||
-            (size.Find(ql) >= 0);
-
-        if (match) filtered.push_back(r);
-    }
-
-    ShowRowsFromCache(filtered);
-}
+//void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
+//{
+//    CString q = keywordRaw; q.Trim();
+//    if (q.IsEmpty()) {
+//        ShowRowsFromCache(m_allRowsDisplay);
+//        return;
+//    }
+//
+//    const CString ql = ToLower(q);
+//    std::vector<DisplayRow> filtered;
+//    filtered.reserve(m_allRowsDisplay.size());
+//
+//    for (const auto& r : m_allRowsDisplay)
+//    {
+//        // 대상: 상태(0), 품번(1), 상품명(2), 브랜드(3), 색상(4), 사이즈(5)
+//        const CString status = ToLower(r.col0);
+//        const CString sku = ToLower(r.col1);
+//        const CString name = ToLower(r.col2);
+//        const CString brand = ToLower(r.col3);
+//        const CString color = ToLower(r.col4);
+//        const CString size = ToLower(r.col5);
+//
+//        bool match =
+//            (sku.Find(ql) >= 0) ||
+//            (name.Find(ql) >= 0) ||
+//            (brand.Find(ql) >= 0) ||
+//            (status.Find(ql) >= 0) ||
+//            (color.Find(ql) >= 0) ||
+//            (size.Find(ql) >= 0);
+//
+//        if (match) filtered.push_back(r);
+//    }
+//
+//    ShowRowsFromCache(filtered);
+//}
 
 // [ADD] 탭별 UI 토글 구현
 void CInventoryManagerDlg::ShowTabPage(int idx)
@@ -844,3 +880,61 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
     }
 }
 
+void CInventoryManagerDlg::ApplyFiltersAndSearch()
+{
+    // 1. 현재 선택된 필터 값 가져오기
+    CString strBrandFilter;
+    int nBrandIndex = m_comboFilterBrand.GetCurSel();
+    if (nBrandIndex > 0) // "전체 브랜드"(0번째)가 아니면
+    {
+        m_comboFilterBrand.GetLBText(nBrandIndex, strBrandFilter);
+    }
+
+    // ※참고: 카테고리 필터를 적용하려면 DB 쿼리부터 수정해야 해서 일단 비워둡니다.
+    CString strCategoryFilter;
+    // int nCategoryIndex = m_comboFilterCategory.GetCurSel();
+    // if (nCategoryIndex > 0) { ... }
+
+
+    // 2. 현재 검색어 가져오기
+    CString strSearchKeyword;
+    m_editSearch.GetWindowText(strSearchKeyword);
+    strSearchKeyword.Trim();
+    const CString lowerKeyword = ToLower(strSearchKeyword);
+
+
+    // 3. 필터링된 결과를 담을 새로운 빈 목록 만들기
+    std::vector<DisplayRow> filteredRows;
+
+    // 4. 모든 데이터가 담긴 원본 캐시(m_allRowsDisplay)를 하나씩 검사
+    for (const auto& row : m_allRowsDisplay)
+    {
+        // [조건 1] 브랜드 필터에 맞는지?
+        // "전체"가 선택됐거나, 현재 행의 브랜드(row.col3)가 선택한 브랜드와 같아야 통과
+        bool bBrandMatch = strBrandFilter.IsEmpty() || (row.col3 == strBrandFilter);
+        if (!bBrandMatch)
+        {
+            continue; // 조건 안맞으면 다음 데이터로 건너뛰기
+        }
+
+        // [조건 2] 검색어에 맞는지? (검색어가 있을 때만 검사)
+        if (!lowerKeyword.IsEmpty())
+        {
+            bool bKeywordMatch =
+                (ToLower(row.col1).Find(lowerKeyword) >= 0) || // 품번
+                (ToLower(row.col2).Find(lowerKeyword) >= 0) || // 상품명
+                (ToLower(row.col3).Find(lowerKeyword) >= 0);   // 브랜드 (다른 필드도 추가 가능)
+
+            if (!bKeywordMatch)
+            {
+                continue; // 조건 안맞으면 다음 데이터로 건너뛰기
+            }
+        }
+
+        // 모든 조건을 통과한 데이터만 결과 목록에 추가!
+        filteredRows.push_back(row);
+    }
+
+    // 5. 최종 필터링된 결과를 화면에 보여주기
+    ShowRowsFromCache(filteredRows);
+}
