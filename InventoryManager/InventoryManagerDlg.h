@@ -12,6 +12,7 @@ class CSettingsDlg;
 
 // ===== 검색 캐시용 행 구조 =====
 struct DisplayRow {
+    int nOptionID;
     CString col0, col1, col2, col3, col4, col5, col6, col7;
 };
 
@@ -46,6 +47,9 @@ private:
     CSettingsDlg* m_pSettingsDlg = nullptr; // ✅ 이 줄을 추가하세요!
     void ShowTabPage(int idx);         // 탭별 UI 토글(재고/통계/설정)
     void ApplyFiltersAndSearch(); // 필터와 검색을 모두 적용하는 함수
+    int m_nSortColumn;       // 현재 정렬된 컬럼 인덱스
+    bool m_bSortAscending;   // true: 오름차순, false: 내림차순
+
 
 public:
     // =========================
@@ -128,6 +132,7 @@ public:
     //void ApplySearchFilter(const CString& keywordRaw);
     afx_msg void OnBnClickedBtnSearch();
     afx_msg void OnSelchangeComboFilter();
+    afx_msg void OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pResult);
 
 protected:
     // (선택) 엔터키로 검색
