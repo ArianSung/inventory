@@ -25,8 +25,7 @@
 #define IDC_BUTTON_PLUS_10              1017
 #define IDC_STATIC_EXPECTED_STOCK       1018
 #define IDC_BUTTON_ORDER                1020
-#define IDC_EDIT_NEW_STOCK              1021   // (유지)
-#define IDC_BUTTON2                     1043   // ★ 기존 1021과 중복 → 1043으로 변경
+#define IDC_EDIT_NEW_STOCK              1021
 #define IDC_BUTTON3                     1022
 #define IDC_STATIC_OPTION_CODE_EDIT     1024
 #define IDC_STATIC_PRODUCT_NAME_EDIT    1025
@@ -42,17 +41,27 @@
 #define IDC_EDIT_DESCRIPTION            1037
 #define IDC_EDIT_IMAGE_URL              1038
 #define IDC_BUTTON1                     1039
-#define IDC_EDIT_SEARCH                 1040   // ★ 기존 1038과 중복 → 1040으로 변경
-#define IDC_BTN_SEARCH                  1041   // ★ 기존 1039과 중복 → 1041로 변경
+#define IDC_EDIT_SEARCH                 1040
+#define IDC_BTN_SEARCH                  1041
+#define IDC_BUTTON2                     1043
+#define IDC_LIST1                       1044
+#define IDC_STATIC_SALES_TOTAL_LABEL    1046
+#define IDC_STATIC_SALES_MONTH_LABEL    1047
+#define IDC_LIST2                       1050
+#define IDC_LIST_STATS_DAILY            3211
+#define IDD_STATS_DIALOG                2000
+#define IDC_LIST_STATS_ORDERS           3200
+#define IDC_LIST_STATS_BRAND            3201
+#define IDC_STATIC_SALES_TOTAL          3204
+#define IDC_STATIC_SALES_MONTH          3205
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_RESOURCE_VALUE        140
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1044  // ★ 최신 값에 맞춰 증가
+#define _APS_NEXT_CONTROL_VALUE         1051
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
-

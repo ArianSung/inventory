@@ -22,6 +22,7 @@ COrderDlg::~COrderDlg()
 void COrderDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+
 }
 
 BEGIN_MESSAGE_MAP(COrderDlg, CDialogEx)

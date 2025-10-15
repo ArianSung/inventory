@@ -1,7 +1,7 @@
 ﻿
 #include "pch.h"
 #include "DBManager.h"
-
+#include <atlconv.h>
 // CString을 UTF-8 CStringA로 변환하는 헬퍼 함수
 CStringA ConvertToUtf8A(const CString & strUnicode)
 {
@@ -596,4 +596,35 @@ CString CDBManager::GetColorCodeFromName(const CString& strName)
 	}
 	FreeResult();
 	return _T("?");
+}
+
+BOOL CDBManager::SelectToRows(const CString& sql, std::vector<std::vector<CString>>& rows)
+{
+	rows.clear();
+
+	if (!ExecuteSelect(sql))    // 프로젝트에 이미 있는 함수명 그대로 사용
+		return FALSE;
+
+	MYSQL_RES* res = m_pResult; // 프로젝트 멤버명(m_pResult) 그대로 사용
+	if (!res) { FreeResult(); return FALSE; }
+
+	int nFields = (int)mysql_num_fields(res);
+	MYSQL_ROW row = nullptr;
+
+	while ((row = mysql_fetch_row(res)) != nullptr)
+	{
+		unsigned long* lengths = mysql_fetch_lengths(res);
+		std::vector<CString> one; one.reserve(nFields);
+		for (int i = 0; i < nFields; ++i) {
+			if (!row[i]) one.push_back(_T(""));
+			else {
+				CStringW w = CA2W(row[i], CP_UTF8);
+				one.push_back(w);
+			}
+		}
+		rows.push_back(std::move(one));
+	}
+
+	FreeResult();
+	return TRUE;
 }

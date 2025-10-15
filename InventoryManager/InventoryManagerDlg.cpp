@@ -8,7 +8,7 @@
 #include "afxdialogex.h"
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
-
+#include "CStatsDlg.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -220,16 +220,47 @@ void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
         CString strTabName;
         switch (nSelectedTab) {
         case 0: strTabName = _T("재고현황"); break;
-        case 1: strTabName = _T("통계"); break;
-        case 2: strTabName = _T("설정"); break;
+        case 1: strTabName = _T("통계");     break;
+        case 2: strTabName = _T("설정");     break;
         default: strTabName = _T("알 수 없음"); break;
         }
 
         CString strLog; strLog.Format(_T("📂 [%s] 탭으로 이동"), strTabName);
         AddLog(strLog);
+
+        // ============================
+        // [ADD] 통계 탭이면 새 창 띄우기
+        // ============================
+        if (nSelectedTab == 1)
+        {
+            // m_pStatsDlg 는 CInventoryManagerDlg 의 멤버: CStatsDlg* m_pStatsDlg = nullptr;
+            // CStatsDlg 헤더 include 필요: #include "CStatsDlg.h"
+            if (m_pStatsDlg == nullptr || !::IsWindow(m_pStatsDlg->GetSafeHwnd()))
+            {
+                m_pStatsDlg = new CStatsDlg();
+                // 메인 DB 포인터/연결상태 전달(조회만 하므로 공유 OK)
+                m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);
+
+                // 모달리스 생성
+                if (!m_pStatsDlg->Create(IDD_STATS_DIALOG, this)) {
+                    AddLog(_T("❌ 통계창 생성 실패"));
+                    delete m_pStatsDlg;
+                    m_pStatsDlg = nullptr;
+                }
+                else {
+                    m_pStatsDlg->ShowWindow(SW_SHOW);
+                }
+            }
+            else {
+                // 이미 떠 있으면 앞으로 가져오기
+                m_pStatsDlg->ShowWindow(SW_SHOW);
+                m_pStatsDlg->SetForegroundWindow();
+            }
+        }
     }
     *pResult = 0;
 }
+
 
 // DB 연결
 void CInventoryManagerDlg::ConnectDatabase()
