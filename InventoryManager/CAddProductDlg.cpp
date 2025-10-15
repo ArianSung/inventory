@@ -69,6 +69,8 @@ BOOL CAddProductDlg::OnInitDialog()
     }
     // ▲▲▲ 여기까지 ▲▲▲
 
+
+
     // 콤보박스 드롭다운 목록에 최소 10개의 항목이 보이도록 설정합니다.
     m_comboBrand.SetMinVisibleItems(10);
     m_comboColor.SetMinVisibleItems(10);

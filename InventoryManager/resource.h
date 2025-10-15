@@ -8,6 +8,7 @@
 #define IDD_DIALOG_ORDER                130
 #define IDD_DIALOG_EDIT_STOCK           132
 #define IDD_ADD_PRODUCT                 136
+#define IDD_SETTINGS_DIALOG             140
 #define IDC_TAB_MAIN                    1000
 #define IDC_EDIT_LOG                    1002
 #define IDC_STATIC_LOG_LABEL            1004
@@ -40,7 +41,7 @@
 #define IDC_EDIT_PRICE                  1036
 #define IDC_EDIT_DESCRIPTION            1037
 #define IDC_EDIT_IMAGE_URL              1038
-#define IDC_BUTTON1                     1039
+#define IDC_BUTTON_APPLY                4039
 #define IDC_EDIT_SEARCH                 1040
 #define IDC_BTN_SEARCH                  1041
 #define IDC_BUTTON2                     1043
@@ -49,6 +50,9 @@
 #define IDC_STATIC_SALES_MONTH_LABEL    1047
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
+#define IDC_EDIT_WARNING                4052
+#define IDC_PLACE_SETTINGS              5052
+#define IDC_EDIT_DANGER                 4053
 #define IDD_STATS_DIALOG                2000
 #define IDC_LIST_STATS_ORDERS           3200
 #define IDC_LIST_STATS_BRAND            3201
@@ -60,9 +64,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        140
+#define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1052
+#define _APS_NEXT_CONTROL_VALUE         1053
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
