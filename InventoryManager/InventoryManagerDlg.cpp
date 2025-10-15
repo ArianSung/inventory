@@ -9,7 +9,7 @@
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
 #include "CStatsDlg.h"
-
+#include "CSettingsDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -179,6 +179,23 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 
     // [EDIT] 현재 탭에 맞춰 표시/숨김
     ShowTabPage(m_tabMain.GetCurSel());
+
+    if (!m_pSettingsDlg) {
+        m_pSettingsDlg = new CSettingsDlg;
+        m_pSettingsDlg->Create(IDD_SETTINGS_DIALOG, this);
+
+        CRect rc;
+        GetDlgItem(IDC_PLACE_SETTINGS)->GetWindowRect(&rc);
+        ScreenToClient(&rc);
+        m_pSettingsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
+            SWP_NOZORDER | SWP_NOACTIVATE);
+
+        m_pSettingsDlg->ShowWindow(SW_HIDE);
+    }
+    if (CWnd* pHost = GetDlgItem(IDC_PLACE_SETTINGS)) {
+        pHost->ShowWindow(SW_HIDE);
+        pHost->EnableWindow(FALSE);
+    }
 
     return TRUE;
 }
@@ -864,30 +881,41 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 {
     const bool showInventory = (idx == 0);
     const bool showStats = (idx == 1);
-    // const bool showSettings  = (idx == 2); // 필요 시 사용
+    const bool showSettings = (idx == 2);
 
-    // 재고 리스트 보이기/숨기기 (필요한 컨트롤들만 토글해도 됨)
+    // 재고 탭 관련 컨트롤 보이기/숨기기
     m_listInventory.ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+    GetDlgItem(IDC_EDIT_SEARCH)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+    GetDlgItem(IDC_BTN_SEARCH)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+    GetDlgItem(IDC_BUTTON_ORDER)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+    GetDlgItem(IDC_BUTTON2)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+    GetDlgItem(IDC_BUTTON3)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
-    // 통계 다이얼로그 보이기/숨기기
+    // 통계 탭 (플레이схолдер와 자식 다이얼로그 모두 제어)
+    if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS)) {
+        pHost->ShowWindow(showStats ? SW_SHOW : SW_HIDE);
+    }
     if (m_pStatsDlg) {
         if (showStats) {
-            // 플레이스홀더 위치에 맞춰 배치
-            CRect rc;
-            GetDlgItem(IDC_PLACE_STATS)->GetWindowRect(&rc);
-            ScreenToClient(&rc);
-            m_pStatsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
-                SWP_NOZORDER | SWP_NOACTIVATE);
-
-            // DB 상태 주입 + 데이터 로드
-            m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);
-            // m_pStatsDlg->Reload();  // Reload가 있으면 이 한 줄로 대체
-
             m_pStatsDlg->Reload();
             m_pStatsDlg->ShowWindow(SW_SHOW);
         }
         else {
             m_pStatsDlg->ShowWindow(SW_HIDE);
+        }
+    }
+
+    // 설정 탭 (플레이схолдер와 자식 다이얼로그 모두 제어)
+    if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS2)) {
+        pHost->ShowWindow(showSettings ? SW_SHOW : SW_HIDE); // ✅ 이 줄이 플레이схолдер를 숨기는 핵심 코드입니다.
+    }
+    if (m_pSettingsDlg) {
+        if (showSettings) {
+            m_pSettingsDlg->SetInitialValues(m_nWarningThreshold, m_nDangerThreshold);
+            m_pSettingsDlg->ShowWindow(SW_SHOW);
+        }
+        else {
+            m_pSettingsDlg->ShowWindow(SW_HIDE);
         }
     }
 }
