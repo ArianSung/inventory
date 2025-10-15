@@ -7,6 +7,8 @@
 #include "DBManager.h"
 #include "CEditStockDlg.h"
 
+class CStatsDlg;
+
 // ===== 검색 캐시용 행 구조 =====
 struct DisplayRow {
     CString col0, col1, col2, col3, col4, col5, col6;
@@ -19,7 +21,7 @@ class CInventoryManagerDlg : public CDialogEx
 public:
     CInventoryManagerDlg(CWnd* pParent = nullptr); // 표준 생성자입니다.
     virtual ~CInventoryManagerDlg();               // 소멸자입니다.
-
+    CStatsDlg* m_pStatsDlg = nullptr;
     // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
     enum { IDD = IDD_INVENTORYMANAGER_DIALOG };

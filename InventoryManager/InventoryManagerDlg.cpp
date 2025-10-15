@@ -10,6 +10,7 @@
 #include "COrderDlg.h"
 #include "CSettingsDlg.h"
 
+#include "CStatsDlg.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -215,7 +216,12 @@ void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
 {
     int nSelectedTab = m_tabMain.GetCurSel();
 
-    // '설정' 탭(인덱스 2)이 선택된 경우
+    // ======================================================================
+    // [수정 제안] 두 브랜치의 기능을 올바르게 통합한 코드
+    // ======================================================================
+
+    // 1. '설정' 탭(인덱스 2)은 특별 케이스로 먼저 처리 (chocobiemk2 브랜치 로직)
+    // 이 탭은 화면 전환 없이 설정창만 띄우고 원래 탭으로 돌아갑니다.
     if (nSelectedTab == 2)
     {
         CSettingsDlg dlg;
@@ -232,21 +238,59 @@ void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR* pNMHDR, LRESULT* pResult)
             m_nWarningThreshold = dlg.m_nWarningValue;
 
             AddLog(_T("⚙️ 재고 상태 기준이 변경되었습니다. 목록을 새로고침합니다."));
-
-            // 변경된 기준으로 목록 새로고침
-            RefreshInventoryData();
+            RefreshInventoryData(); // 변경된 기준으로 목록 새로고침
         }
 
         // 중요: 설정 창이 닫힌 후, 다시 이전 탭으로 포커스를 돌려줍니다.
         m_tabMain.SetCurSel(m_nCurrentTab);
     }
-    else // 다른 탭이 선택된 경우
+    // 2. 그 외 다른 탭들(0, 1번 등)에 대한 일반적인 처리 (backup2 브랜치 로직)
+    else
     {
-        m_nCurrentTab = nSelectedTab; // 현재 탭 인덱스 업데이트
+        m_nCurrentTab = nSelectedTab; // 현재 탭 인덱스 업데이트 (설정 탭이 돌아올 위치를 위해 필수)
+
+        // 탭 이동 로그 남기기
+        CString strTabName;
+        switch (nSelectedTab) {
+        case 0: strTabName = _T("재고현황"); break;
+        case 1: strTabName = _T("통계");   break;
+        // case 2는 위에서 처리했으므로 생략
+        default: strTabName = _T("알 수 없음"); break;
+        }
+
+        CString strLog;
+        strLog.Format(_T("📂 [%s] 탭으로 이동"), strTabName);
+        AddLog(strLog);
+
+        // '통계' 탭(인덱스 1)을 선택했을 때 통계창 띄우기
+        if (nSelectedTab == 1)
+        {
+            if (m_pStatsDlg == nullptr || !::IsWindow(m_pStatsDlg->GetSafeHwnd()))
+            {
+                m_pStatsDlg = new CStatsDlg();
+                m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);
+
+                if (!m_pStatsDlg->Create(IDD_STATS_DIALOG, this)) {
+                    AddLog(_T("❌ 통계창 생성 실패"));
+                    delete m_pStatsDlg;
+                    m_pStatsDlg = nullptr;
+                }
+                else {
+                    m_pStatsDlg->ShowWindow(SW_SHOW);
+                }
+            }
+            else {
+                // 이미 떠 있으면 앞으로 가져오기
+                m_pStatsDlg->ShowWindow(SW_SHOW);
+                m_pStatsDlg->SetForegroundWindow();
+            }
+        }
     }
+    // ======================================================================
 
     *pResult = 0;
 }
+
 
 // DB 연결
 void CInventoryManagerDlg::ConnectDatabase()
