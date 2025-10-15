@@ -85,7 +85,7 @@ BOOL CInventoryManagerDlg::OnInitDialog()
     UpdateData(FALSE);
 
     // 검색 컨트롤 연결
-    m_editSearch.SubclassDlgItem(IDC_EDIT_SEARCH, this);
+    m_editSearch.SubclassDlgItem( IDC_EDIT_SEARCH, this);
     m_btnSearch.SubclassDlgItem(IDC_BTN_SEARCH, this);
 
     // 탭/리스트 초기화
