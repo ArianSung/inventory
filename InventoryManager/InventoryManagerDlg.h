@@ -11,7 +11,7 @@ class CStatsDlg;
 
 // ===== 검색 캐시용 행 구조 =====
 struct DisplayRow {
-    CString col0, col1, col2, col3, col4, col5, col6;
+    CString col0, col1, col2, col3, col4, col5, col6, col7;
 };
 
 // CInventoryManagerDlg 대화 상자

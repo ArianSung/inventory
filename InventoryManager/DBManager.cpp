@@ -317,12 +317,14 @@ BOOL CDBManager::GetInventoryList(std::vector<INVENTORY_ITEM>& vecItems)
 	}
 	CString strQuery =
 		_T("SELECT po.option_id, po.option_code, po.stock, p.product_id, p.product_name, ")
+		_T("b.brand_name, c.color_name, s.size_name, cat.category_name ")
 		_T("b.brand_name, c.color_name, s.size_name ")
 		_T("FROM product_options po ")
 		_T("JOIN products p ON po.product_id = p.product_id ")
 		_T("JOIN brands b ON p.brand_id = b.brand_id ")
 		_T("JOIN colors c ON po.color_id = c.color_id ")
 		_T("JOIN sizes s ON po.size_id = s.size_id ")
+		_T("JOIN categories cat ON p.category_id = cat.category_id ")
 		_T("ORDER BY po.stock ASC, p.product_name ASC");
 
 	if (!ExecuteSelect(strQuery)) return FALSE;
@@ -331,7 +333,7 @@ BOOL CDBManager::GetInventoryList(std::vector<INVENTORY_ITEM>& vecItems)
 	MYSQL_ROW row;
 	while ((row = mysql_fetch_row(m_pResult)) != nullptr) {
 		INVENTORY_ITEM item;
-		if (row[0] && row[1] && row[2] && row[3] && row[4] && row[5] && row[6] && row[7]) {
+		if (row[0] && row[1] && row[2] && row[3] && row[4] && row[5] && row[6] && row[7] && row[8]) {
 			item.nOptionID = atoi(row[0]);
 			item.strOptionCode = ConvertFromUTF8(row[1]);
 			item.nStock = atoi(row[2]);
@@ -340,6 +342,7 @@ BOOL CDBManager::GetInventoryList(std::vector<INVENTORY_ITEM>& vecItems)
 			item.strBrandName = ConvertFromUTF8(row[5]);
 			item.strColorName = ConvertFromUTF8(row[6]);
 			item.strSizeName = ConvertFromUTF8(row[7]);
+			item.strCategoryName = ConvertFromUTF8(row[8]);
 			vecItems.push_back(item);
 		}
 	}

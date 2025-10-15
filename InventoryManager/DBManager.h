@@ -33,6 +33,7 @@ struct INVENTORY_ITEM
 	CString strOptionCode;      // 옵션 코드 (예: SP-TS-001-BK-L)
 	CString strProductName;     // 상품명
 	CString strBrandName;       // 브랜드명
+	CString strCategoryName;	// 카테고리명
 	CString strColorName;       // 색상명
 	CString strSizeName;        // 사이즈명
 	int nStock;                 // 재고 수량
