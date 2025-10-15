@@ -9,6 +9,7 @@
 #include "CAddProductDlg.h"
 #include "COrderDlg.h"
 #include "CStatsDlg.h"
+#include <algorithm> 
 
 
 #ifdef _DEBUG
@@ -37,6 +38,8 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
     , m_bAutoRefresh(TRUE)      // 자동 새로고침 활성화
     , m_pDBManager(nullptr)
     , m_bDBConnected(FALSE)
+    , m_nSortColumn(7)          // 기본 정렬: 7번 '재고' 컬럼
+    , m_bSortAscending(true)    // 기본 정렬: 오름차순
 {
     m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -56,6 +59,8 @@ void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
     DDX_Control(pDX, IDC_TAB_MAIN, m_tabMain);
     DDX_Control(pDX, IDC_EDIT_LOG, m_editLog);
     DDX_Control(pDX, IDC_LIST_INVENTORY, m_listInventory);
+    DDX_Control(pDX, IDC_COMBO_FILTER_BRAND, m_comboFilterBrand);
+    DDX_Control(pDX, IDC_COMBO_FILTER_CATEGORY, m_comboFilterCategory);
 }
 
 BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
@@ -70,6 +75,10 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BUTTON2, &CInventoryManagerDlg::OnBnClickedButton2)
     ON_BN_CLICKED(IDC_BUTTON3, &CInventoryManagerDlg::OnBnClickedButton3)
     ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // 검색 버튼
+    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
+    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
+    ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
+
 END_MESSAGE_MAP()
 
 
@@ -109,6 +118,39 @@ BOOL CInventoryManagerDlg::OnInitDialog()
     // 재고 데이터 로드/표시/캐시
     if (m_bDBConnected)
     {
+        m_comboFilterBrand.SetRedraw(FALSE);
+        m_comboFilterCategory.SetRedraw(FALSE);
+
+        // 콤보 박스 초기화 (첫 항목으로 "전체" 추가)
+        m_comboFilterBrand.InsertString(0, _T("전체 브랜드"));
+        m_comboFilterBrand.SetCurSel(0); // 0번째 항목("전체 브랜드")을 기본으로 선택
+
+        m_comboFilterCategory.InsertString(0, _T("전체 카테고리"));
+        m_comboFilterCategory.SetCurSel(0);
+
+        // DB에서 브랜드 목록 가져와서 콤보 박스에 추가하기
+        std::vector<CString> vecBrands;
+        if (m_pDBManager->GetBrandList(vecBrands)) // DB매니저에게 브랜드 목록 요청
+        {
+            for (const auto& brand : vecBrands) // 가져온 목록을 하나씩
+            {
+                m_comboFilterBrand.AddString(brand); // 콤보 박스에 추가
+            }
+        }
+
+        // DB에서 카테고리 목록 가져와서 콤보 박스에 추가하기
+        std::vector<CString> vecCategories;
+        if (m_pDBManager->GetCategoryList(vecCategories)) // DB매니저에게 카테고리 목록 요청
+        {
+            for (const auto& category : vecCategories) // 가져온 목록을 하나씩
+            {
+                m_comboFilterCategory.AddString(category); // 콤보 박스에 추가
+            }
+        }
+
+        m_comboFilterBrand.SetRedraw(TRUE);
+        m_comboFilterCategory.SetRedraw(TRUE);
+
         LoadInventoryData();
         UpdateInventoryList();
         SnapshotDisplayToCache();
@@ -402,19 +444,21 @@ void CInventoryManagerDlg::InitInventoryList()
     dwStyle |= LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES;
     m_listInventory.SetExtendedStyle(dwStyle);
 
+    // 8개의 컬럼을 순서대로 생성합니다.
     m_listInventory.InsertColumn(0, _T("상태"), LVCFMT_CENTER, 60);
     m_listInventory.InsertColumn(1, _T("품번"), LVCFMT_LEFT, 150);
-    m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 200);
+    m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 150);
     m_listInventory.InsertColumn(3, _T("브랜드"), LVCFMT_LEFT, 100);
-    m_listInventory.InsertColumn(4, _T("색상"), LVCFMT_CENTER, 80);
-    m_listInventory.InsertColumn(5, _T("사이즈"), LVCFMT_CENTER, 80);
-    m_listInventory.InsertColumn(6, _T("재고"), LVCFMT_RIGHT, 80);
+    m_listInventory.InsertColumn(4, _T("카테고리"), LVCFMT_LEFT, 100);
+    m_listInventory.InsertColumn(5, _T("색상"), LVCFMT_CENTER, 80);
+    m_listInventory.InsertColumn(6, _T("사이즈"), LVCFMT_CENTER, 80);
+    m_listInventory.InsertColumn(7, _T("재고"), LVCFMT_RIGHT, 80);
 
     int nFinalColCount = m_listInventory.GetHeaderCtrl()->GetItemCount();
     CString strDebug; strDebug.Format(_T("📋 최종 컬럼 개수: %d"), nFinalColCount);
     AddLog(strDebug);
 
-    if (nFinalColCount == 7) AddLog(_T("✅ 재고 리스트 초기화 완료"));
+    if (nFinalColCount == 8) AddLog(_T("✅ 재고 리스트 초기화 완료"));
     else                     AddLog(_T("❌ 재고 리스트 초기화 실패 (컬럼 개수 불일치)"));
 }
 
@@ -429,19 +473,20 @@ void CInventoryManagerDlg::UpdateInventoryList()
     }
 
     int nColCount = m_listInventory.GetHeaderCtrl()->GetItemCount();
-    if (nColCount != 7)
+    if (nColCount != 8)
     {
         CString strError; strError.Format(_T("❌ 컬럼 개수 오류 (현재: %d, 필요: 7)"), nColCount);
         AddLog(strError);
         AddLog(_T("🔄 리스트 재초기화 시도..."));
         InitInventoryList();
-        return;
+        //return;
     }
 
     CString strDebug; strDebug.Format(_T("🔍 업데이트할 데이터: %d건"), (int)m_vecInventory.size());
     AddLog(strDebug);
     if (m_vecInventory.empty()) {
         AddLog(_T("⚠️ 표시할 재고 데이터가 없습니다."));
+        m_listInventory.DeleteAllItems();
         return;
     }
 
@@ -466,34 +511,32 @@ void CInventoryManagerDlg::UpdateInventoryList()
             continue;
         }
 
+        // 8개 컬럼에 순서대로 데이터를 채웁니다.
         m_listInventory.SetItemText(nIndex, 1, item.strOptionCode);
         m_listInventory.SetItemText(nIndex, 2, item.strProductName);
         m_listInventory.SetItemText(nIndex, 3, item.strBrandName);
-        m_listInventory.SetItemText(nIndex, 4, item.strColorName);
-        m_listInventory.SetItemText(nIndex, 5, item.strSizeName);
-
+        m_listInventory.SetItemText(nIndex, 4, item.strCategoryName);
+        m_listInventory.SetItemText(nIndex, 5, item.strColorName);
+        m_listInventory.SetItemText(nIndex, 6, item.strSizeName);
         CString strStock; strStock.Format(_T("%d"), item.nStock);
-        m_listInventory.SetItemText(nIndex, 6, strStock);
+        m_listInventory.SetItemText(nIndex, 7, strStock);
 
         m_listInventory.SetItemData(nIndex, (DWORD_PTR)item.nOptionID);
-
         nAddedCount++;
-        if (i < 5) {
-            CString strItemLog;
-            strItemLog.Format(_T("  ✓ [%d] %s - %s"), nIndex, item.strOptionCode, item.strProductName);
-            AddLog(strItemLog);
-        }
+        //m_listInventory.SetRedraw(TRUE);
+        //m_listInventory.Invalidate();
+        //AddLog(_T("✅ 리스트 업데이트 완료"));
     }
 
     m_listInventory.SetRedraw(TRUE);
     m_listInventory.Invalidate(TRUE);
     m_listInventory.UpdateWindow();
 
-    MSG msg;
+    /*MSG msg;
     while (PeekMessage(&msg, m_listInventory.GetSafeHwnd(), 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-    }
+    }*/
 
     CString strLog; strLog.Format(_T("✅ 리스트 업데이트 완료 (%d건)"), nAddedCount);
     AddLog(strLog);
@@ -638,12 +681,12 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
             AddLog(strLog);
             AfxMessageBox(_T("재고가 수정되었습니다."));
 
-            MSG msg;
-            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
+            //MSG msg;
+            //while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
 
             RefreshInventoryData();
 
-            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
+            //while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
         }
         else
         {
@@ -714,22 +757,27 @@ void CInventoryManagerDlg::OnBnClickedButton3()
 // =========================
 void CInventoryManagerDlg::OnBnClickedBtnSearch()
 {
-    CString q; m_editSearch.GetWindowText(q);
-    ApplySearchFilter(q);  // 캐시 기반 검색
+    //CString q; m_editSearch.GetWindowText(q);
+    //ApplySearchFilter(q);  // 캐시 기반 검색
+    ApplyFiltersAndSearch();
 }
 
 BOOL CInventoryManagerDlg::PreTranslateMessage(MSG* pMsg)
 {
     if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
     {
-        CWnd* f = GetFocus();
-        if (f && f->GetDlgCtrlID() == IDC_EDIT_SEARCH) {
-            CWnd* pBtn = GetDlgItem(IDC_BTN_SEARCH);
-            if (pBtn) pBtn->PostMessage(BM_CLICK);
+        if (GetFocus() && GetFocus()->GetDlgCtrlID() == IDC_EDIT_SEARCH)
+        {
+            ApplyFiltersAndSearch();
             return TRUE;
         }
     }
     return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CInventoryManagerDlg::OnSelchangeComboFilter()
+{
+    ApplyFiltersAndSearch(); // 핵심 함수 호출
 }
 
 // =========================
@@ -739,22 +787,27 @@ void CInventoryManagerDlg::SnapshotDisplayToCache()
 {
     m_allRowsDisplay.clear();
     const int rowCount = m_listInventory.GetItemCount();
+    if (rowCount == 0) return;
 
     m_allRowsDisplay.reserve(rowCount);
     for (int i = 0; i < rowCount; ++i)
     {
         DisplayRow r;
-        r.col0 = m_listInventory.GetItemText(i, 0); // 상태
-        r.col1 = m_listInventory.GetItemText(i, 1); // 품번
-        r.col2 = m_listInventory.GetItemText(i, 2); // 상품명
-        r.col3 = m_listInventory.GetItemText(i, 3); // 브랜드
-        r.col4 = m_listInventory.GetItemText(i, 4); // 색상
-        r.col5 = m_listInventory.GetItemText(i, 5); // 사이즈
-        r.col6 = m_listInventory.GetItemText(i, 6); // 재고
+        // [수정] GetItemData를 사용해 Option ID를 캐시에 저장
+        r.nOptionID = (int)m_listInventory.GetItemData(i);
+
+        // 8개 컬럼 데이터를 모두 빠짐없이 복사합니다.
+        r.col0 = m_listInventory.GetItemText(i, 0);
+        r.col1 = m_listInventory.GetItemText(i, 1);
+        r.col2 = m_listInventory.GetItemText(i, 2);
+        r.col3 = m_listInventory.GetItemText(i, 3);
+        r.col4 = m_listInventory.GetItemText(i, 4);
+        r.col5 = m_listInventory.GetItemText(i, 5);
+        r.col6 = m_listInventory.GetItemText(i, 6);
+        r.col7 = m_listInventory.GetItemText(i, 7);
         m_allRowsDisplay.push_back(r);
     }
 }
-
 void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows)
 {
     m_listInventory.SetRedraw(FALSE);
@@ -763,53 +816,58 @@ void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows
     for (const auto& r : rows)
     {
         int i = m_listInventory.InsertItem(m_listInventory.GetItemCount(), r.col0);
+        // 8개 컬럼 데이터를 모두 빠짐없이 화면에 표시합니다.
         m_listInventory.SetItemText(i, 1, r.col1);
         m_listInventory.SetItemText(i, 2, r.col2);
         m_listInventory.SetItemText(i, 3, r.col3);
         m_listInventory.SetItemText(i, 4, r.col4);
         m_listInventory.SetItemText(i, 5, r.col5);
         m_listInventory.SetItemText(i, 6, r.col6);
+        m_listInventory.SetItemText(i, 7, r.col7);
+
+        // [수정] 캐시에서 가져온 Option ID를 다시 설정
+        m_listInventory.SetItemData(i, (DWORD_PTR)r.nOptionID);
     }
 
     m_listInventory.SetRedraw(TRUE);
     m_listInventory.Invalidate();
 }
 
-void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
-{
-    CString q = keywordRaw; q.Trim();
-    if (q.IsEmpty()) {
-        ShowRowsFromCache(m_allRowsDisplay);
-        return;
-    }
-
-    const CString ql = ToLower(q);
-    std::vector<DisplayRow> filtered;
-    filtered.reserve(m_allRowsDisplay.size());
-
-    for (const auto& r : m_allRowsDisplay)
-    {
-        // 대상: 상태(0), 품번(1), 상품명(2), 브랜드(3), 색상(4), 사이즈(5)
-        const CString status = ToLower(r.col0);
-        const CString sku = ToLower(r.col1);
-        const CString name = ToLower(r.col2);
-        const CString brand = ToLower(r.col3);
-        const CString color = ToLower(r.col4);
-        const CString size = ToLower(r.col5);
-
-        bool match =
-            (sku.Find(ql) >= 0) ||
-            (name.Find(ql) >= 0) ||
-            (brand.Find(ql) >= 0) ||
-            (status.Find(ql) >= 0) ||
-            (color.Find(ql) >= 0) ||
-            (size.Find(ql) >= 0);
-
-        if (match) filtered.push_back(r);
-    }
-
-    ShowRowsFromCache(filtered);
-}
+//void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
+//{
+//    CString q = keywordRaw; q.Trim();
+//    if (q.IsEmpty()) {
+//        ShowRowsFromCache(m_allRowsDisplay);
+//        return;
+//    }
+//
+//    const CString ql = ToLower(q);
+//    std::vector<DisplayRow> filtered;
+//    filtered.reserve(m_allRowsDisplay.size());
+//
+//    for (const auto& r : m_allRowsDisplay)
+//    {
+//        // 대상: 상태(0), 품번(1), 상품명(2), 브랜드(3), 색상(4), 사이즈(5)
+//        const CString status = ToLower(r.col0);
+//        const CString sku = ToLower(r.col1);
+//        const CString name = ToLower(r.col2);
+//        const CString brand = ToLower(r.col3);
+//        const CString color = ToLower(r.col4);
+//        const CString size = ToLower(r.col5);
+//
+//        bool match =
+//            (sku.Find(ql) >= 0) ||
+//            (name.Find(ql) >= 0) ||
+//            (brand.Find(ql) >= 0) ||
+//            (status.Find(ql) >= 0) ||
+//            (color.Find(ql) >= 0) ||
+//            (size.Find(ql) >= 0);
+//
+//        if (match) filtered.push_back(r);
+//    }
+//
+//    ShowRowsFromCache(filtered);
+//}
 
 // [ADD] 탭별 UI 토글 구현
 void CInventoryManagerDlg::ShowTabPage(int idx)
@@ -842,5 +900,134 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
             m_pStatsDlg->ShowWindow(SW_HIDE);
         }
     }
+}
+
+void CInventoryManagerDlg::ApplyFiltersAndSearch()
+{
+    // 1. 현재 선택된 필터 값 가져오기
+    CString strBrandFilter;
+    int nBrandIndex = m_comboFilterBrand.GetCurSel();
+    if (nBrandIndex > 0) // "전체 브랜드"가 아닐 경우
+    {
+        m_comboFilterBrand.GetLBText(nBrandIndex, strBrandFilter);
+    }
+
+    // (카테고리 필터는 향후 확장을 위해 변수만 선언)
+    CString strCategoryFilter;
+    int nCategoryIndex = m_comboFilterCategory.GetCurSel();
+    if (nCategoryIndex > 0)
+    {
+        m_comboFilterCategory.GetLBText(nCategoryIndex, strCategoryFilter);
+    }
+
+    // 2. 현재 검색어 가져오기
+    CString strSearchKeyword;
+    m_editSearch.GetWindowText(strSearchKeyword);
+    strSearchKeyword.Trim();
+    const CString lowerKeyword = ToLower(strSearchKeyword);
+
+    // 3. 필터링된 결과를 담을 새 목록 준비
+    std::vector<DisplayRow> filteredRows;
+
+    // 4. 원본 캐시 데이터를 하나씩 검사하며 필터링 진행
+    for (const auto& row : m_allRowsDisplay)
+    {
+        // [조건 1] 브랜드 필터
+        CString brandFromRow = row.col3;
+        bool bBrandMatch = strBrandFilter.IsEmpty() || (brandFromRow.Trim() == strBrandFilter);
+        if (!bBrandMatch)
+        {
+            continue;
+        }
+
+        // [조건 2] 카테고리 필터 (현재는 비활성화)
+        CString categoryFromRow = row.col4;
+        bool bCategoryMatch = strCategoryFilter.IsEmpty() || (categoryFromRow.Trim() == strCategoryFilter);
+        if (!bCategoryMatch)
+        {
+            continue;
+        }
+
+        // [조건 3] 검색어 필터 (검색어가 있을 경우에만)
+        if (!lowerKeyword.IsEmpty())
+        {
+            bool bKeywordMatch =
+                (ToLower(row.col0).Find(lowerKeyword) >= 0) || // 상태
+                (ToLower(row.col1).Find(lowerKeyword) >= 0) || // 품번
+                (ToLower(row.col2).Find(lowerKeyword) >= 0) || // 상품명
+                (ToLower(row.col3).Find(lowerKeyword) >= 0) || // 브랜드
+                (ToLower(row.col4).Find(lowerKeyword) >= 0) || // 색상
+                (ToLower(row.col5).Find(lowerKeyword) >= 0);   // 사이즈
+
+            if (!bKeywordMatch)
+            {
+                continue;
+            }
+        }
+
+        // 모든 조건을 통과한 데이터만 결과 목록에 추가
+        filteredRows.push_back(row);
+    }
+
+    // 5. 최종 결과를 화면에 표시
+    ShowRowsFromCache(filteredRows);
+}
+
+// =========================
+// 🔎 리스트 컬럼 클릭 (정렬)
+// =========================
+void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+    int nColumn = pNMLV->iSubItem; // 사용자가 클릭한 컬럼의 인덱스
+
+    // 같은 컬럼을 다시 클릭하면 정렬 순서 변경 (오름차순 <-> 내림차순)
+    if (nColumn == m_nSortColumn) {
+        m_bSortAscending = !m_bSortAscending;
+    }
+    // 다른 컬럼을 클릭하면 해당 컬럼으로 정렬 대상을 바꾸고, 기본은 오름차순
+    else {
+        m_nSortColumn = nColumn;
+        m_bSortAscending = true;
+    }
+
+    // std::sort에 사용할 람다(lambda) 비교 함수 정의
+    auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
+        CString strA, strB;
+
+        // 클릭된 컬럼(m_nSortColumn)에 따라 비교할 데이터 선택
+        switch (m_nSortColumn) {
+        case 0: strA = a.col0; strB = b.col0; break; // 상태
+        case 1: strA = a.col1; strB = b.col1; break; // 품번
+        case 2: strA = a.col2; strB = b.col2; break; // 상품명
+        case 3: strA = a.col3; strB = b.col3; break; // 브랜드
+        case 4: strA = a.col4; strB = b.col4; break; // 카테고리
+        case 5: strA = a.col5; strB = b.col5; break; // 색상
+        case 6: strA = a.col6; strB = b.col6; break; // 사이즈
+        case 7: { // '재고' 컬럼은 숫자로 비교
+            int valA = _ttoi(a.col7);
+            int valB = _ttoi(b.col7);
+            if (m_bSortAscending) return valA < valB;
+            else return valA > valB;
+        }
+        default: return false; // 예외 처리
+        }
+
+        // 문자열 컬럼 비교
+        if (m_bSortAscending) {
+            return strA.Compare(strB) < 0; // 오름차순
+        }
+        else {
+            return strA.Compare(strB) > 0; // 내림차순
+        }
+        };
+
+    // 준비된 람다 함수를 이용해 캐시(m_allRowsDisplay)를 정렬
+    std::sort(m_allRowsDisplay.begin(), m_allRowsDisplay.end(), sortLambda);
+
+    // 정렬된 캐시 데이터로 리스트 화면을 다시 그림
+    ShowRowsFromCache(m_allRowsDisplay);
+
+    *pResult = 0;
 }
 
