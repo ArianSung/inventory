@@ -521,11 +521,11 @@ void CInventoryManagerDlg::UpdateInventoryList()
     m_listInventory.Invalidate(TRUE);
     m_listInventory.UpdateWindow();
 
-    MSG msg;
+    /*MSG msg;
     while (PeekMessage(&msg, m_listInventory.GetSafeHwnd(), 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-    }
+    }*/
 
     CString strLog; strLog.Format(_T("✅ 리스트 업데이트 완료 (%d건)"), nAddedCount);
     AddLog(strLog);
@@ -670,12 +670,12 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
             AddLog(strLog);
             AfxMessageBox(_T("재고가 수정되었습니다."));
 
-            MSG msg;
-            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
+            //MSG msg;
+            //while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
 
             RefreshInventoryData();
 
-            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
+            //while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessage(&msg); }
         }
         else
         {

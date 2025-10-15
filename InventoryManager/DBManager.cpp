@@ -318,13 +318,12 @@ BOOL CDBManager::GetInventoryList(std::vector<INVENTORY_ITEM>& vecItems)
 	CString strQuery =
 		_T("SELECT po.option_id, po.option_code, po.stock, p.product_id, p.product_name, ")
 		_T("b.brand_name, c.color_name, s.size_name, cat.category_name ")
-		_T("b.brand_name, c.color_name, s.size_name ")
 		_T("FROM product_options po ")
 		_T("JOIN products p ON po.product_id = p.product_id ")
 		_T("JOIN brands b ON p.brand_id = b.brand_id ")
 		_T("JOIN colors c ON po.color_id = c.color_id ")
 		_T("JOIN sizes s ON po.size_id = s.size_id ")
-		_T("JOIN categories cat ON p.category_id = cat.category_id ")
+		_T("LEFT JOIN categories cat ON p.category_id = cat.category_id ")
 		_T("ORDER BY po.stock ASC, p.product_name ASC");
 
 	if (!ExecuteSelect(strQuery)) return FALSE;
