@@ -51,6 +51,7 @@ public:
     // =========================
     // UI 컨트롤 변수
     // =========================
+    void UpdateThresholds(int nWarning, int nDanger);
     CTabCtrl   m_tabMain;
     CEdit      m_editLog;
     CListCtrl  m_listInventory;

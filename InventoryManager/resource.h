@@ -51,9 +51,9 @@
 #define IDC_EDIT_WARNING                4054
 #define IDC_STATIC_DANGER               4055
 #define IDC_PLACE_STATS2               4056
-#define IDC_EDIT_WARNING2               4056
-#define IDC_EDIT_DANGER                 4056
-#define IDC_STATIC_WARNING              4057
+#define IDC_EDIT_WARNING2               4057
+#define IDC_EDIT_DANGER                 4058
+#define IDC_STATIC_WARNING              4059
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053

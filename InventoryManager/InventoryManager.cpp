@@ -94,3 +94,5 @@ BOOL CInventoryManagerApp::InitInstance()
 	return FALSE;
 }
 
+
+
