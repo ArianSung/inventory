@@ -113,6 +113,9 @@ BOOL CInventoryManagerDlg::OnInitDialog()
     // 재고 데이터 로드/표시/캐시
     if (m_bDBConnected)
     {
+        m_comboFilterBrand.SetRedraw(FALSE);
+        m_comboFilterCategory.SetRedraw(FALSE);
+
         // 콤보 박스 초기화 (첫 항목으로 "전체" 추가)
         m_comboFilterBrand.InsertString(0, _T("전체 브랜드"));
         m_comboFilterBrand.SetCurSel(0); // 0번째 항목("전체 브랜드")을 기본으로 선택
@@ -139,6 +142,9 @@ BOOL CInventoryManagerDlg::OnInitDialog()
                 m_comboFilterCategory.AddString(category); // 콤보 박스에 추가
             }
         }
+
+        m_comboFilterBrand.SetRedraw(TRUE);
+        m_comboFilterCategory.SetRedraw(TRUE);
 
         LoadInventoryData();
         UpdateInventoryList();
