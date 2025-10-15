@@ -442,7 +442,7 @@ void CInventoryManagerDlg::InitInventoryList()
     // 8개의 컬럼을 순서대로 생성합니다.
     m_listInventory.InsertColumn(0, _T("상태"), LVCFMT_CENTER, 60);
     m_listInventory.InsertColumn(1, _T("품번"), LVCFMT_LEFT, 150);
-    m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 200);
+    m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 150);
     m_listInventory.InsertColumn(3, _T("브랜드"), LVCFMT_LEFT, 100);
     m_listInventory.InsertColumn(4, _T("카테고리"), LVCFMT_LEFT, 100);
     m_listInventory.InsertColumn(5, _T("색상"), LVCFMT_CENTER, 80);

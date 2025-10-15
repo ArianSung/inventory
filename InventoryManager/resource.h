@@ -45,8 +45,6 @@
 #define IDC_BTN_SEARCH                  1041
 #define IDC_BUTTON2                     1043
 #define IDC_LIST1                       1044
-#define IDC_STATIC_SALES_TOTAL_LABEL    1046
-#define IDC_STATIC_SALES_MONTH_LABEL    1047
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
 #define IDC_COMBO_FILTER_BRAND          3052
