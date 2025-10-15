@@ -61,3 +61,10 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+# Enable text diff/merge for MFC resource files
+*.rc text diff linguist-language=C++ merge=union
+resource.h text diff linguist-language=C++ merge=union
+
+# Force Git to treat .rc as text (prevent binary/LFS handling)
+*.rc -filter=lfs
+*.rc -diff
