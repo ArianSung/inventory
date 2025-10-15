@@ -1052,3 +1052,20 @@ void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pR
     *pResult = 0;
 }
 
+// 👈 [추가] 파일 맨 아래에 이 함수 전체를 추가해주세요.
+void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
+{
+	// 메인 다이얼로그의 멤버 변수 업데이트
+	m_nWarningThreshold = nWarning;
+	m_nDangerThreshold = nDanger;
+
+	// 로그 남기기
+	CString strLog;
+	strLog.Format(_T("⚙️ 설정 변경: 주의 기준=%d, 위험 기준=%d"), nWarning, nDanger);
+	AddLog(strLog);
+
+	// 변경된 기준을 바로 적용하기 위해 재고 목록 새로고침
+	AddLog(_T("🔄 설정 적용을 위해 목록을 새로고침합니다."));
+	RefreshInventoryData();
+}
+
