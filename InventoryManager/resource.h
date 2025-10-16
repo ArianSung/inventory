@@ -54,6 +54,11 @@
 #define IDC_EDIT_DB_USER                4064
 #define IDC_EDIT_DB_PASS                4065
 #define IDC_BTN_SAVE_DB                 4066
+#define IDC_STATIC_PERIOD_LABEL         1058
+#define IDC_DATETIMEPICKER_START        1059
+#define IDC_DATETIMEPICKER_END          1060
+#define IDC_BUTTON1                     1061
+#define IDC_BUTTON_SEARCH_PERIOD        1061
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053
