@@ -1154,6 +1154,9 @@ void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
 	m_nWarningThreshold = nWarning;
 	m_nDangerThreshold = nDanger;
 
+	//변경된 값을 config.ini 파일에 즉시 저장합니다.
+	SaveThresholdsToConfig();
+
 	CString strLog;
 	strLog.Format(_T("⚙️ 설정 변경: 주의 기준=%d, 위험 기준=%d"), nWarning, nDanger);
 	AddLog(strLog);
@@ -1199,6 +1202,11 @@ void CInventoryManagerDlg::LoadDbConfig()
 
 	GetPrivateProfileString(_T("Database"), _T("Password"), _T("Moble1234"), szPassword, 256, strConfigFile);
 	m_dbConfig.strPassword = szPassword;
+
+	// [Settings] 섹션에서 WarningThreshold 값을 읽어옵니다. 없으면 기본값 30을 사용합니다.
+	m_nWarningThreshold = GetPrivateProfileInt(_T("Settings"), _T("WarningThreshold"), 30, strConfigFile);
+	// [Settings] 섹션에서 DangerThreshold 값을 읽어옵니다. 없으면 기본값 10을 사용합니다.
+	m_nDangerThreshold = GetPrivateProfileInt(_T("Settings"), _T("DangerThreshold"), 10, strConfigFile);
 
 	// 만약 config.ini 파일이 존재하지 않았다면, 방금 읽어온 기본값으로 파일을 새로 저장합니다.
 	// 이 로직 덕분에 프로그램을 처음 실행하면 자동으로 기존 정보와 동일한 config.ini가 생성됩니다.
@@ -1259,4 +1267,18 @@ void CInventoryManagerDlg::UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig
 		m_vecInventory.clear();
 		UpdateInventoryList();
 	}
+}
+
+void CInventoryManagerDlg::SaveThresholdsToConfig()
+{
+	CString strConfigFile = GetConfigFilePath();
+	CString strValue;
+
+	// m_nWarningThreshold 값을 문자열로 변환하여 [Settings] 섹션에 저장
+	strValue.Format(_T("%d"), m_nWarningThreshold);
+	WritePrivateProfileString(_T("Settings"), _T("WarningThreshold"), strValue, strConfigFile);
+
+	// m_nDangerThreshold 값을 문자열로 변환하여 [Settings] 섹션에 저장
+	strValue.Format(_T("%d"), m_nDangerThreshold);
+	WritePrivateProfileString(_T("Settings"), _T("DangerThreshold"), strValue, strConfigFile);
 }

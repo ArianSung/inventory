@@ -117,6 +117,7 @@ public:
     void LoadDbConfig();
     void SaveDbConfig();
     void UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig);
+    void SaveThresholdsToConfig();
 
     int m_nDangerThreshold;  // 위험 재고 기준
     int m_nWarningThreshold; // 주의 재고 기준
