@@ -78,6 +78,7 @@ public:
     // =========================
     CDBManager* m_pDBManager;    // DB 관리자 (싱글톤 인스턴스)
     BOOL        m_bDBConnected;  // DB 연결 상태
+    DB_CONFIG   m_dbConfig;      // ✅ [추가] DB 접속 정보를 담을 구조체
 
     // =========================
     // 멤버 함수
@@ -113,6 +114,10 @@ public:
     void ConnectDatabase();          // DB 연결
     void DisconnectDatabase();       // DB 연결 해제
     BOOL TestConnection();           // 연결 테스트
+    void LoadDbConfig();
+    void SaveDbConfig();
+    void UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig);
+    void SaveThresholdsToConfig();
 
     int m_nDangerThreshold;  // 위험 재고 기준
     int m_nWarningThreshold; // 주의 재고 기준
