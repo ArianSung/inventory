@@ -11,6 +11,7 @@
 #include "CStatsDlg.h" // '통계' 대화 상자
 #include "CSettingsDlg.h" // '설정' 대화 상자
 #include <algorithm> // 정렬(std::sort) 기능을 사용하기 위해 포함
+#include <set> // 중복된 상품 삭제를 방지하기 위해 사용
 #include "CBulkOrderDlg.h" // '대량 발주' 대화 상자
 #include <fstream> // 파일 입출력 스트림
 
@@ -409,7 +410,7 @@ void CInventoryManagerDlg::ConnectDatabase()
 	m_pDBManager = CDBManager::GetInstance();
 	if (m_pDBManager == nullptr)
 	{
-		AddLog	(_T("❌ DB 관리자 초기화 실패"));
+		AddLog(_T("❌ DB 관리자 초기화 실패"));
 		m_bDBConnected = FALSE;
 		return;
 	}
@@ -893,14 +894,15 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 }
 
 /**
- * @brief '삭제' 버튼(IDC_BUTTON2) 클릭 이벤트 핸들러입니다.
+ * @brief [전면 수정] '삭제' 버튼(IDC_BUTTON2) 클릭 이벤트 핸들러입니다.
+ * 요구사항에 맞춰 옵션 삭제 및 마지막 옵션일 경우 상품까지 삭제하도록 변경되었습니다.
  */
 void CInventoryManagerDlg::OnBnClickedButton2()
 {
 	// 리스트에서 선택된 모든 항목의 위치(POSITION)를 가져옵니다.
 	POSITION pos = m_listInventory.GetFirstSelectedItemPosition();
 	if (pos == nullptr) {
-		AfxMessageBox(_T("삭제할 품목을 먼저 선택해주세요."));
+		AfxMessageBox(_T("삭제할 품목(옵션)을 먼저 선택해주세요."));
 		AddLog(_T("⚠️ 삭제: 품목이 선택되지 않음"));
 		return;
 	}
@@ -915,7 +917,7 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 		int nItem = m_listInventory.GetNextSelectedItem(pos);
 		vecOptionIDs.push_back((int)m_listInventory.GetItemData(nItem));
 
-		if (nItemCount < 5) // 확인 창에는 최대 5개 품목 이름만 표시
+		if (nItemCount < 5) // 확인 창에는 최대 5개 품번만 표시
 		{
 			strProductList += _T("- ") + m_listInventory.GetItemText(nItem, 1) + _T("\n");
 		}
@@ -929,7 +931,13 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 
 	// 사용자에게 최종 확인을 받습니다.
 	CString strConfirmMsg;
-	strConfirmMsg.Format(_T("총 %d개의 품목을 정말로 삭제하시겠습니까?\n\n%s\n이 작업은 되돌릴 수 없습니다."), nItemCount, strProductList);
+	strConfirmMsg.Format(
+		_T("총 %d개의 품목(옵션)을 정말로 삭제하시겠습니까?\n\n")
+		_T("%s\n")
+		_T("이 작업은 되돌릴 수 없습니다.\n")
+		_T("(만약 이 삭제로 인해 상품에 남는 옵션이 없게 되면, 상품 정보 전체가 삭제됩니다.)"),
+		nItemCount, strProductList);
+
 	if (AfxMessageBox(strConfirmMsg, MB_YESNO | MB_ICONWARNING) != IDYES) {
 		AddLog(_T("🚫 삭제가 사용자에 의해 취소됨"));
 		return;
@@ -942,12 +950,12 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 	}
 
 	CString strLog;
-	strLog.Format(_T("🗑️ %d개 품목 일괄 삭제 시도..."), nItemCount);
+	strLog.Format(_T("🗑️ %d개 품목(옵션) 일괄 삭제 시도..."), nItemCount);
 	AddLog(strLog);
 
-	// DB에 품목 일괄 삭제를 요청합니다.
-	if (m_pDBManager->DeleteInventoryItems(vecOptionIDs)) {
-		AfxMessageBox(_T("선택한 품목이 성공적으로 삭제되었습니다."));
+	// DB에 품목(옵션) 일괄 삭제 및 상품 정리 요청
+	if (m_pDBManager->DeleteOptionsAndCleanup(vecOptionIDs)) {
+		AfxMessageBox(_T("선택한 품목(옵션)이 성공적으로 삭제되었습니다."));
 		AddLog(_T("✅ 삭제 성공!"));
 		RefreshInventoryData(); // 화면 새로고침
 	}
@@ -957,6 +965,7 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 		AfxMessageBox(strError);
 	}
 }
+
 
 /**
  * @brief '상품 추가' 버튼(IDC_BUTTON3) 클릭 이벤트 핸들러입니다.
@@ -1785,3 +1794,4 @@ void CInventoryManagerDlg::OnDestroy()
 	if (m_nTimerID != 0) { KillTimer(m_nTimerID); m_nTimerID = 0; } // 타이머가 실행 중이면 종료
 	if (m_nAutoOrderTimerID != 0) { KillTimer(m_nAutoOrderTimerID); m_nAutoOrderTimerID = 0; } // 자동발주 타이머 종료
 }
+

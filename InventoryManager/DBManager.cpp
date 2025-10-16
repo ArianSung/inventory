@@ -1,9 +1,8 @@
-﻿
-#include "pch.h"
+﻿#include "pch.h"
 #include "DBManager.h"
 #include <atlconv.h>
 // CString을 UTF-8 CStringA로 변환하는 헬퍼 함수
-CStringA ConvertToUtf8A(const CString & strUnicode)
+CStringA ConvertToUtf8A(const CString& strUnicode)
 {
 	int nLen = WideCharToMultiByte(CP_UTF8, 0, strUnicode, -1, NULL, 0, NULL, NULL);
 	char* pBuffer = new char[nLen];
@@ -387,89 +386,6 @@ BOOL CDBManager::AddStock(int nOptionID, int nQuantity)
 }
 
 // ========================================
-// 품목 삭제
-// ========================================
-BOOL CDBManager::DeleteInventoryItem(int nOptionID)
-{
-	if (m_pConnection == nullptr) {
-		AfxMessageBox(_T("디버그: DBManager 오류 - DB에 연결되지 않았습니다."));
-		SetError(_T("DB에 연결되지 않았습니다."));
-		return FALSE;
-	}
-
-	if (mysql_query(m_pConnection, "START TRANSACTION")) {
-		CString msg;
-		msg.Format(_T("디버그: 트랜잭션 시작 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		return FALSE;
-	}
-	AfxMessageBox(_T("디버그: 1. 트랜잭션 시작 성공"));
-
-	CString strQuery;
-	my_ulonglong affected_rows;
-
-	// order_details 삭제
-	strQuery.Format(_T("DELETE FROM order_details WHERE option_id = %d"), nOptionID);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: order_details 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 2. order_details 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
-
-	// cart 삭제
-	strQuery.Format(_T("DELETE FROM cart WHERE option_id = %d"), nOptionID);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: cart 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 3. cart 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
-
-	// product_options 삭제
-	strQuery.Format(_T("DELETE FROM product_options WHERE option_id = %d"), nOptionID);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: product_options 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 4. product_options 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
-
-	// ✨ 핵심 진단: product_options 테이블에서 행이 삭제되지 않았다면 실패 처리
-	if (affected_rows == 0) {
-		AfxMessageBox(_T("디버그: 5. [실패] product_options 테이블에서 삭제된 행이 0개입니다. 롤백합니다."));
-		SetError(_T("DB 오류: 삭제할 품목을 찾지 못했습니다 (영향받은 행 없음). Option ID 값을 확인하세요."));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	// 6. 모든 삭제가 성공했으면 최종 적용 (커밋)
-	if (mysql_query(m_pConnection, "COMMIT") != 0) { // ✅ != 0 비교 추가!
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-
-	SetError(_T(""), 0); // 성공 시 에러 메시지 초기화
-	return TRUE;
-}
-
-// ========================================
 // '상품 추가' 관련 신규 함수들
 // ========================================
 
@@ -632,73 +548,6 @@ BOOL CDBManager::SelectToRows(const CString& sql, std::vector<std::vector<CStrin
 }
 
 /**
- * @brief 여러 품목을 한 번의 트랜잭션으로 삭제합니다. (일괄 삭제)
- * @param vecOptionIDs 삭제할 option_id의 벡터
- * @return BOOL 성공 시 TRUE, 실패 시 FALSE
- */
-BOOL CDBManager::DeleteInventoryItems(const std::vector<int>& vecOptionIDs)
-{
-	if (!m_bConnected) {
-		SetError(_T("DB에 연결되지 않았습니다."));
-		return FALSE;
-	}
-	if (vecOptionIDs.empty()) {
-		return TRUE; // 삭제할 것이 없으면 성공으로 처리
-	}
-
-	// ID들을 콤마로 구분된 문자열로 만듭니다. (예: "10,25,33")
-	CString strIDs;
-	for (size_t i = 0; i < vecOptionIDs.size(); ++i) {
-		strIDs.AppendFormat(_T("%d"), vecOptionIDs[i]);
-		if (i < vecOptionIDs.size() - 1) {
-			strIDs.Append(_T(","));
-		}
-	}
-
-	// 데이터 무결성을 위해 트랜잭션 시작
-	if (mysql_query(m_pConnection, "START TRANSACTION")) {
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		return FALSE;
-	}
-
-	CString strQuery;
-
-	// 1. 자식 테이블(order_details) 데이터 삭제
-	strQuery.Format(_T("DELETE FROM order_details WHERE option_id IN (%s)"), strIDs);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
-		return FALSE;
-	}
-
-	// 2. 자식 테이블(cart) 데이터 삭제
-	strQuery.Format(_T("DELETE FROM cart WHERE option_id IN (%s)"), strIDs);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
-		return FALSE;
-	}
-
-	// 3. 부모 테이블(product_options) 데이터 삭제
-	strQuery.Format(_T("DELETE FROM product_options WHERE option_id IN (%s)"), strIDs);
-	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
-		return FALSE;
-	}
-
-	// 4. 모든 쿼리가 성공했으면 최종 적용 (커밋)
-	if (mysql_query(m_pConnection, "COMMIT")) {
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-
-	SetError(_T(""), 0);
-	return TRUE;
-}
-
-/**
  * @brief 여러 품목의 재고를 한 번에 추가합니다. (일괄 발주)
  * @param vecOptionIDs 재고를 추가할 option_id의 벡터
  * @param nQuantity 각 품목에 추가할 수량
@@ -731,3 +580,93 @@ BOOL CDBManager::AddStockToItems(const std::vector<int>& vecOptionIDs, int nQuan
 	// ExecuteQuery 함수를 호출하여 쿼리를 실행합니다.
 	return ExecuteQuery(strQuery);
 }
+
+/**
+ * @brief [새 함수] 여러 상품 옵션을 삭제하고, 마지막 옵션일 경우 부모 상품까지 정리합니다.
+ * @param vecOptionIDs 삭제할 option_id의 벡터
+ * @return BOOL 모든 작업이 성공하면 TRUE, 하나라도 실패하면 FALSE
+ */
+BOOL CDBManager::DeleteOptionsAndCleanup(const std::vector<int>& vecOptionIDs)
+{
+	if (!m_bConnected) {
+		SetError(_T("DB에 연결되지 않았습니다."));
+		return FALSE;
+	}
+	if (vecOptionIDs.empty()) {
+		return TRUE; // 삭제할 것이 없으면 성공으로 처리
+	}
+
+	// 각 옵션 ID에 대해 순차적으로 트랜잭션 처리
+	for (int nOptionID : vecOptionIDs)
+	{
+		// 1. 트랜잭션 시작
+		if (mysql_query(m_pConnection, "START TRANSACTION")) {
+			SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+			return FALSE;
+		}
+
+		// 2. 삭제할 옵션의 product_id 가져오기
+		long long nProductID = -1;
+		CString strQuery;
+		strQuery.Format(_T("SELECT product_id FROM product_options WHERE option_id = %d"), nOptionID);
+		if (ExecuteSelect(strQuery) && GetRowCount() > 0)
+		{
+			MYSQL_ROW row = FetchRow();
+			if (row && row[0]) {
+				nProductID = _ttoi64(ConvertFromUTF8(row[0]));
+			}
+		}
+		FreeResult(); // SELECT 결과 즉시 해제
+
+		if (nProductID == -1) {
+			// 해당 옵션이 이미 없거나 오류 발생. 롤백하고 다음으로 넘어가지 않음.
+			mysql_query(m_pConnection, "ROLLBACK");
+			// [오류 수정] CString::Format을 사용하여 안전하게 문자열 생성
+			CString strErrorMsg;
+			strErrorMsg.Format(_T("삭제할 옵션 정보를 찾을 수 없습니다. (ID: %d)"), nOptionID);
+			SetError(strErrorMsg);
+			return FALSE;
+		}
+
+		// 3. 해당 옵션 삭제
+		strQuery.Format(_T("DELETE FROM product_options WHERE option_id = %d"), nOptionID);
+		if (!ExecuteQuery(strQuery)) {
+			mysql_query(m_pConnection, "ROLLBACK"); // 쿼리 실패 시 롤백
+			// GetLastError()는 ExecuteQuery 내부에서 이미 설정됨
+			return FALSE;
+		}
+
+		// 4. 해당 상품에 남은 다른 옵션이 있는지 확인
+		int nRemainingOptions = 0;
+		strQuery.Format(_T("SELECT COUNT(*) FROM product_options WHERE product_id = %lld"), nProductID);
+		if (ExecuteSelect(strQuery) && GetRowCount() > 0) {
+			MYSQL_ROW row = FetchRow();
+			if (row && row[0]) {
+				nRemainingOptions = _ttoi(ConvertFromUTF8(row[0]));
+			}
+		}
+		FreeResult();
+
+		// 5. 남은 옵션이 없으면 부모 상품도 삭제
+		if (nRemainingOptions == 0)
+		{
+			strQuery.Format(_T("DELETE FROM products WHERE product_id = %lld"), nProductID);
+			if (!ExecuteQuery(strQuery)) {
+				mysql_query(m_pConnection, "ROLLBACK");
+				return FALSE;
+			}
+		}
+
+		// 6. 현재 옵션에 대한 모든 작업이 성공했으므로 커밋
+		if (mysql_query(m_pConnection, "COMMIT")) {
+			SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+			// 커밋 실패 시 롤백 시도
+			mysql_query(m_pConnection, "ROLLBACK");
+			return FALSE;
+		}
+	}
+
+	SetError(_T(""), 0);
+	return TRUE; // 모든 옵션 처리가 성공적으로 완료됨
+}
+
