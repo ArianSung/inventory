@@ -114,8 +114,11 @@ public:
 	BOOL UpdateStock(int nOptionID, int nNewStock);                // 재고 수정
 	BOOL AddStock(int nOptionID, int nQuantity);                   // 재고 추가 (발주)
 	BOOL AddStockToItems(const std::vector<int>& vecOptionIDs, int nQuantity); // 일괄 발주
-	BOOL DeleteInventoryItem(int nOptionID);                        //품목 삭제
-	BOOL DeleteInventoryItems(const std::vector<int>& vecOptionIDs); // 일괄 삭제
+
+	// ========================================
+	// [변경] 상품 옵션 삭제 및 상품 정리
+	// ========================================
+	BOOL DeleteOptionsAndCleanup(const std::vector<int>& vecOptionIDs);
 
 	// ========================================
 	// 에러 처리
