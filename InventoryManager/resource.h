@@ -41,19 +41,17 @@
 #define IDC_EDIT_PRICE                  1036
 #define IDC_EDIT_DESCRIPTION            1037
 #define IDC_EDIT_IMAGE_URL              1038
-#define IDC_BUTTON_APPLY                4039
 #define IDC_EDIT_SEARCH                 1040
 #define IDC_BTN_SEARCH                  1041
 #define IDC_BUTTON2                     1043
 #define IDC_LIST1                       1044
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
-#define IDC_EDIT_WARNING                4054
-#define IDC_STATIC_DANGER               4055
-#define IDC_PLACE_STATS2               4056
-#define IDC_EDIT_WARNING2               4057
-#define IDC_EDIT_DANGER                 4058
-#define IDC_STATIC_WARNING              4059
+#define IDC_STATIC_PERIOD_LABEL         1058
+#define IDC_DATETIMEPICKER_START        1059
+#define IDC_DATETIMEPICKER_END          1060
+#define IDC_BUTTON1                     1061
+#define IDC_BUTTON_SEARCH_PERIOD        1061
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053
@@ -63,6 +61,13 @@
 #define IDC_STATIC_SALES_TOTAL          3204
 #define IDC_STATIC_SALES_MONTH          3205
 #define IDC_LIST_STATS_DAILY            3211
+#define IDC_BUTTON_APPLY                4039
+#define IDC_EDIT_WARNING                4054
+#define IDC_STATIC_DANGER               4055
+#define IDC_PLACE_STATS2                4056
+#define IDC_EDIT_WARNING2               4057
+#define IDC_EDIT_DANGER                 4058
+#define IDC_STATIC_WARNING              4059
 
 // Next default values for new objects
 // 
@@ -70,7 +75,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1058
+#define _APS_NEXT_CONTROL_VALUE         1062
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
