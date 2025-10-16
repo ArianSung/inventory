@@ -46,6 +46,7 @@ protected:
     void LoadStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
     void LoadBrandStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
     void LoadDailyStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
+    void LoadOrdersByPeriod(const CString& strStartDate, const CString& strEndDate);
 
     afx_msg void OnClose();
     virtual void OnCancel();

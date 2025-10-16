@@ -296,10 +296,13 @@ void CStatsDlg::LoadStatsByPeriod(const CString& strStartDate, const CString& st
         return;
     }
 
-    // ===== 1. 브랜드별 통계 로드 =====
+    // ===== 1. 주문 내역 로드 ===== 
+    LoadOrdersByPeriod(strStartDate, strEndDate);
+
+    // ===== 2. 브랜드별 통계 로드 =====
     LoadBrandStatsByPeriod(strStartDate, strEndDate);
 
-    // ===== 2. 일별 통계 로드 =====
+    // ===== 3. 일별 통계 로드 =====
     LoadDailyStatsByPeriod(strStartDate, strEndDate);
 }
 
@@ -389,4 +392,48 @@ void CStatsDlg::LoadDailyStatsByPeriod(const CString& strStartDate, const CStrin
 
 }
 
+void CStatsDlg::LoadOrdersByPeriod(const CString& strStartDate, const CString& strEndDate)
+{
+    // 리스트 초기화
+    m_listOrders.DeleteAllItems();
 
+    // SQL 쿼리 작성 (날짜 필터 적용)
+    CString strQuery;
+    strQuery.Format(
+        _T("SELECT o.order_id, o.order_date, b.brand_name, p.product_name, po.option_code, ")
+        _T("       c.color_name, s.size_name, od.quantity, od.price_per_item, ")
+        _T("       (od.quantity * od.price_per_item) AS line_total ")
+        _T("FROM order_details od ")
+        _T("JOIN orders o           ON o.order_id = od.order_id ")
+        _T("JOIN product_options po ON po.option_id = od.option_id ")
+        _T("JOIN products p         ON p.product_id = po.product_id ")
+        _T("JOIN brands b           ON b.brand_id = p.brand_id ")
+        _T("JOIN colors c           ON c.color_id = po.color_id ")
+        _T("JOIN sizes  s           ON s.size_id  = po.size_id ")
+        _T("WHERE DATE(o.order_date) BETWEEN '%s' AND '%s' ")  // ✨ 날짜 필터 추가
+        _T("ORDER BY o.order_date DESC, o.order_id DESC LIMIT 200"),
+        strStartDate, strEndDate
+    );
+
+    // DB 실행
+    std::vector<std::vector<CString>> rows;
+    if (!m_pDB->SelectToRows(strQuery, rows))
+    {
+        AfxMessageBox(_T("주문 내역 조회 실패"), MB_ICONERROR);
+        return;
+    }
+
+    // 리스트에 데이터 추가
+    m_listOrders.SetRedraw(FALSE);
+    for (size_t i = 0; i < rows.size(); ++i)
+    {
+        const auto& r = rows[i];
+        int idx = m_listOrders.InsertItem((int)i, r.size() > 0 ? r[0] : _T(""));
+        for (int col = 1; col <= 9; ++col)
+        {
+            m_listOrders.SetItemText(idx, col, (r.size() > col ? r[col] : _T("")));
+        }
+    }
+    m_listOrders.SetRedraw(TRUE);
+    AutoSizeColumns(m_listOrders);
+}
