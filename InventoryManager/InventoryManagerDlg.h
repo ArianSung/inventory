@@ -29,7 +29,7 @@ public:
 #endif
 
 protected:
-    virtual void DoDataExchange(CDataExchange* pDX); // DDX/DDV 지원입니다.
+    virtual void DoDataExchange(CDataExchange* pDX); // DDX/DDV 지원입니다.R
     afx_msg void OnTimer(UINT_PTR nIDEvent);
     afx_msg void OnDestroy();
 
