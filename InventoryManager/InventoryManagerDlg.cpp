@@ -910,7 +910,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 		}
 	}
 
-	// 설정 탭 (플레이схолдер와 자식 다이얼로그 모두 제어)
+	// 설정 탭 (플레이스홀더와 자식 다이얼로그 모두 제어)
 	if (m_pSettingsDlg) {
 		if (showSettings) {
 			// 👈 [수정] 함수 이름을 LoadSettings로 변경
