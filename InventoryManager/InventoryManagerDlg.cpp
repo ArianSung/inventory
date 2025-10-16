@@ -12,6 +12,7 @@
 #include "CSettingsDlg.h" // '설정' 대화 상자
 #include <algorithm> // 정렬(std::sort) 기능을 사용하기 위해 포함
 #include "CBulkOrderDlg.h" // '대량 발주' 대화 상자
+#include <fstream> // 파일 입출력 스트림
 
 #ifdef _DEBUG
 #define new DEBUG_NEW // 디버그 모드에서 메모리 누수 탐지를 위해 사용
@@ -111,6 +112,7 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
 	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤의 컬럼 헤더를 클릭하면 OnColumnclickListInventory 함수를 호출 (정렬 기능)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
+	ON_BN_CLICKED(IDC_BUTTON_EXPORT_INV, &CInventoryManagerDlg::OnBnClickedButtonExportInv)
 END_MESSAGE_MAP()
 
 
@@ -1357,4 +1359,107 @@ void CInventoryManagerDlg::SaveThresholdsToConfig()
 	// m_nDangerThreshold 값을 문자열로 변환하여 [Settings] 섹션에 저장
 	strValue.Format(_T("%d"), m_nDangerThreshold);
 	WritePrivateProfileString(_T("Settings"), _T("DangerThreshold"), strValue, strConfigFile);
+}
+
+void CInventoryManagerDlg::OnBnClickedButtonExportInv()
+{
+	// 1. 파일 저장 대화상자 열기
+	CFileDialog dlg(FALSE, _T("csv"), _T("inventory_list.csv"),
+		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
+		_T("CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*||"));
+
+	if (dlg.DoModal() != IDOK)
+	{
+		AddLog(_T("🚫 내보내기가 취소되었습니다."));
+		return;
+	}
+
+	CString strFilePath = dlg.GetPathName();
+
+	// CFile을 사용하여 바이너리 모드로 파일을 엽니다.
+	CFile file;
+	if (!file.Open(strFilePath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
+	{
+		AfxMessageBox(_T("파일을 생성하는 데 실패했습니다. 파일이 다른 프로그램에서 열려있는지 확인해주세요."));
+		return;
+	}
+
+	AddLog(_T("🔄 재고 목록을 CSV 파일로 내보내는 중... 경로: ") + strFilePath);
+
+	TRY
+	{
+		// ---[핵심 수정] CString(유니코드)을 UTF-8로 변환하여 파일에 쓰는 람다 함수---
+		auto WriteLineAsUtf8 = [&](const CString& line) {
+			// CString(UTF-16) -> UTF-8로 변환
+			int nLen = WideCharToMultiByte(CP_UTF8, 0, line, -1, NULL, 0, NULL, NULL);
+			char* buf = new char[nLen];
+			WideCharToMultiByte(CP_UTF8, 0, line, -1, buf, nLen, NULL, NULL);
+
+			// 변환된 UTF-8 문자열을 파일에 쓴다 (NULL 종료 문자는 제외)
+			file.Write(buf, nLen - 1);
+			delete[] buf;
+		};
+	// -------------------------------------------------------------------
+
+	// 2. UTF-8 BOM(Byte Order Mark) 쓰기: Excel에서 한글 깨짐을 방지하는 신호
+	unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+	file.Write(bom, 3);
+
+	// 3. 컬럼 헤더(제목) 쓰기
+	CString strHeader;
+	CHeaderCtrl* pHeader = m_listInventory.GetHeaderCtrl();
+	int nColumnCount = pHeader->GetItemCount();
+	for (int i = 0; i < nColumnCount; ++i)
+	{
+		TCHAR szText[256] = { 0 };
+		HDITEM hdi = { 0 };
+		hdi.mask = HDI_TEXT;
+		hdi.pszText = szText;
+		hdi.cchTextMax = 256;
+		pHeader->GetItem(i, &hdi);
+
+		CString strCol(hdi.pszText);
+		// 콤마나 큰따옴표가 포함된 경우 처리 (CSV 표준)
+		strCol.Replace(_T("\""), _T("\"\""));
+		strHeader += _T("\"") + strCol + _T("\"");
+
+		if (i < nColumnCount - 1)
+			strHeader += _T(",");
+	}
+	WriteLineAsUtf8(strHeader + _T("\n"));
+
+	// 4. 리스트의 모든 데이터 행 쓰기
+	int nRowCount = m_listInventory.GetItemCount();
+	for (int i = 0; i < nRowCount; ++i)
+	{
+		CString strLine;
+		for (int j = 0; j < nColumnCount; ++j)
+		{
+			CString strItem = m_listInventory.GetItemText(i, j);
+			// 데이터에 콤마가 포함된 경우 큰따옴표로 감싸기
+			if (strItem.Find(_T(',')) != -1 || strItem.Find(_T('\"')) != -1)
+			{
+				strItem.Replace(_T("\""), _T("\"\"")); // 큰따옴표는 2개로 치환
+				strItem = _T("\"") + strItem + _T("\"");
+			}
+			strLine += strItem;
+
+			if (j < nColumnCount - 1)
+				strLine += _T(",");
+		}
+		WriteLineAsUtf8(strLine + _T("\n"));
+	}
+
+	file.Close();
+	AddLog(_T("✅ 내보내기 완료!"));
+	AfxMessageBox(_T("재고 목록을 성공적으로 내보냈습니다."));
+	}
+		CATCH(CFileException, e)
+	{
+		TCHAR szError[1024];
+		e->GetErrorMessage(szError, 1024);
+		AfxMessageBox(szError);
+		AddLog(_T("❌ 내보내기 실패: ") + CString(szError));
+	}
+	END_CATCH
 }

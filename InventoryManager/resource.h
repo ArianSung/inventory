@@ -53,7 +53,7 @@
 #define IDC_DATETIMEPICKER_END          1060
 #define IDC_BUTTON1                     1061
 #define IDC_BUTTON_SEARCH_PERIOD        1061
-#define IDC_EDIT1                       1065
+#define IDC_BUTTON_EXPORT_INV           1061
 #define IDC_EDIT_BULK_QUANTITY          1065
 #define IDC_STATIC_ITEM_COUNT           1066
 #define IDD_STATS_DIALOG                2000
