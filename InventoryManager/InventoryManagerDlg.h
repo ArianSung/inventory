@@ -73,6 +73,7 @@ public:
     int       m_nCurrentTab;        // 현재 선택된 탭 인덱스
     UINT_PTR  m_nTimerID;           // 타이머 ID
 	UINT_PTR  m_nAutoOrderTimerID;  // 자동발주 타이머 ID
+    CTime     m_tSnoozeEndTime;
     int       m_nRefreshInterval;   // 자동 새로고침 간격 (초)
     BOOL      m_bAutoRefresh;       // 자동 새로고침 활성화 여부
 
@@ -167,5 +168,4 @@ public:
     CComboBox m_comboFilterBrand;
     CComboBox m_comboFilterCategory;
     afx_msg void OnBnClickedButtonExportInv();
-    afx_msg void OnBnClickedButtonTestAutoOrder();
 };

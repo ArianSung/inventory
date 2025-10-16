@@ -43,6 +43,7 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
 	, m_nWarningThreshold(30)   // '주의' 재고 기준 수량 (기본값 30개 미만)
 	, m_nTimerID(0)             // 타이머 ID (0은 비활성 상태)
 	, m_nAutoOrderTimerID(0)	// 자동발주 타이머 ID (0은 비활성 상태)
+	, m_tSnoozeEndTime(0)		// 스누즈 종료 시간 (기본값 0)
 	, m_nRefreshInterval(30)    // 자동 새로고침 간격 (기본 30초)
 	, m_bAutoRefresh(TRUE)      // 자동 새로고침 기능 활성화 여부
 	, m_pDBManager(nullptr)     // 데이터베이스 관리자 포인터
@@ -119,7 +120,6 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤의 컬럼 헤더를 클릭하면 OnColumnclickListInventory 함수를 호출 (정렬 기능)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
 	ON_BN_CLICKED(IDC_BUTTON_EXPORT_INV, &CInventoryManagerDlg::OnBnClickedButtonExportInv)
-	ON_BN_CLICKED(IDC_BUTTON_TEST_AUTO_ORDER, &CInventoryManagerDlg::OnBnClickedButtonTestAutoOrder)
 END_MESSAGE_MAP()
 
 
@@ -386,6 +386,16 @@ void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 {
 	m_nCurrentTab = m_tabMain.GetCurSel(); // 선택된 탭의 인덱스를 가져옵니다.
+
+	CString strTabName;
+	TCITEM item = { 0 };
+	item.mask = TCIF_TEXT;
+	item.pszText = strTabName.GetBuffer(50);
+	item.cchTextMax = 50;
+	m_tabMain.GetItem(m_nCurrentTab, &item);
+	strTabName.ReleaseBuffer();
+	AddLog(_T("📄 탭 변경: ") + strTabName);
+
 	ShowTabPage(m_nCurrentTab); // 해당 탭에 맞는 화면을 보여줍니다.
 	*pResult = 0;
 }
@@ -953,11 +963,16 @@ void CInventoryManagerDlg::OnBnClickedButton2()
  */
 void CInventoryManagerDlg::OnBnClickedButton3()
 {
+	AddLog(_T("'상품 추가' 대화상자를 엽니다."));
 	CAddProductDlg dlg;
 	// '상품 추가' 대화상자를 띄우고, '확인'을 누르면 목록을 새로고침합니다.
 	if (dlg.DoModal() == IDOK) {
-		AddLog(_T("✨ 새 상품이 추가되었습니다. 목록을 새로고침합니다."));
+		AddLog(_T("새 상품이 추가되었습니다. 목록을 새로고침합니다."));
 		RefreshInventoryData();
+	}
+	else
+	{
+		AddLog(_T("🚫 '상품 추가'가 취소되었습니다."));
 	}
 }
 
@@ -1072,6 +1087,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	GetDlgItem(IDC_BUTTON3)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_BRAND)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_CATEGORY)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_BUTTON_EXPORT_INV)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
 	// '통계' 탭을 선택한 경우, 통계 다이얼로그를 보여줍니다.
 	if (m_pStatsDlg) {
@@ -1126,6 +1142,13 @@ void CInventoryManagerDlg::ApplyFiltersAndSearch()
 	m_editSearch.GetWindowText(strSearchKeyword);
 	strSearchKeyword.Trim(); // 앞뒤 공백 제거
 	const CString lowerKeyword = ToLower(strSearchKeyword); // 대소문자 구분 없는 비교를 위해 소문자로 변환
+
+	CString strLog;
+	strLog.Format(_T("🔍 검색/필터 적용: 브랜드=[%s], 카테고리=[%s], 키워드=[%s]"),
+		strBrandFilter.IsEmpty() ? _T("전체") : strBrandFilter,
+		strCategoryFilter.IsEmpty() ? _T("전체") : strCategoryFilter,
+		strSearchKeyword.IsEmpty() ? _T("없음") : strSearchKeyword);
+	AddLog(strLog);
 
 	// 3. 필터링된 결과를 담을 새로운 벡터를 준비합니다.
 	std::vector<DisplayRow> filteredRows;
@@ -1193,6 +1216,16 @@ void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pR
 		m_nSortColumn = nColumn;
 		m_bSortAscending = true;
 	}
+
+	TCHAR szText[256] = { 0 };
+	HDITEM hdi = { 0 };
+	hdi.mask = HDI_TEXT;
+	hdi.pszText = szText;
+	hdi.cchTextMax = 256;
+	m_listInventory.GetHeaderCtrl()->GetItem(nColumn, &hdi);
+	CString strLog;
+	strLog.Format(_T("🔃 목록 정렬: '%s' 컬럼, %s"), CString(hdi.pszText), m_bSortAscending ? _T("오름차순") : _T("내림차순"));
+	AddLog(strLog);
 
 	// std::sort에 사용할 비교 함수(람다)를 정의합니다.
 	auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
@@ -1559,6 +1592,13 @@ void CInventoryManagerDlg::SaveAutoOrderConfig()
 // ========================================
 void CInventoryManagerDlg::CheckAutoOrder()
 {
+	// 0. [추가] 알림 끄기(Snooze) 상태인지 확인
+	if (CTime::GetCurrentTime() < m_tSnoozeEndTime)
+	{
+		// 아직 알림 끄기 시간이 끝나지 않았으므로, 아무것도 하지 않고 함수를 종료합니다.
+		return;
+	}
+
 	// 1. 자동발주가 비활성화되어 있으면 종료
 	if (!m_bAutoOrderEnabled)
 	{
@@ -1618,9 +1658,12 @@ void CInventoryManagerDlg::CheckAutoOrder()
 	}
 	else if (nResult == IDIGNORE)
 	{
-		// "무시" 선택
-		AddLog(_T("🚫 자동발주 알림을 무시했습니다."));
-		// TODO: 일정 시간 동안 알림 끄기 기능 (선택사항)
+		// "무시" 선택 -> 1시간 동안 알림 끄기
+		m_tSnoozeEndTime = CTime::GetCurrentTime() + CTimeSpan(0, 1, 0, 0); // 1시간 후
+		CString strLog;
+		strLog.Format(_T("🚫 자동발주 알림을 1시간 동안 끄기 설정했습니다. (종료: %s)"),
+			m_tSnoozeEndTime.Format(_T("%H:%M:%S")));
+		AddLog(strLog);
 	}
 }
 
@@ -1732,14 +1775,6 @@ void CInventoryManagerDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 
 	CDialogEx::OnTimer(nIDEvent);
-}
-
-
-
-void CInventoryManagerDlg::OnBnClickedButtonTestAutoOrder()
-{
-	AddLog(_T("🧪 [테스트] 자동발주 체크 실행"));
-	CheckAutoOrder();
 }
 
 
