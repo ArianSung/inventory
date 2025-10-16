@@ -9,7 +9,9 @@
 #define IDD_DIALOG_EDIT_STOCK           132
 #define IDD_ADD_PRODUCT                 136
 #define IDD_SETTINGS_DIALOG             140
+#define IDC_EDIT_AUTO_ORDER_INTERVAL    140
 #define IDD_BULK_ORDER_DIALOG           142
+#define IDD_AUTO_ORDER_NOTIFY           144
 #define IDC_TAB_MAIN                    1000
 #define IDC_EDIT_LOG                    1002
 #define IDC_STATIC_LOG_LABEL            1004
@@ -46,6 +48,7 @@
 #define IDC_BTN_SEARCH                  1041
 #define IDC_BUTTON2                     1043
 #define IDC_LIST1                       1044
+#define IDC_LIST_AUTO_ORDER_ITEMS       1044
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
 #define IDC_STATIC_PERIOD_LABEL         1058
@@ -54,8 +57,17 @@
 #define IDC_BUTTON1                     1061
 #define IDC_BUTTON_SEARCH_PERIOD        1061
 #define IDC_BUTTON_EXPORT_INV           1061
+#define IDC_BUTTON_AUTO_ORDER_APPLY     1061
 #define IDC_EDIT_BULK_QUANTITY          1065
 #define IDC_STATIC_ITEM_COUNT           1066
+#define IDC_STATIC_NOTIFY_SUMMARY       1067
+#define IDC_BUTTON_IGNORE               1068
+#define IDC_STATIC_AUTO_ORDER_GROUP     1069
+#define IDC_CHECK_AUTO_ORDER_ENABLE     1070
+#define IDC_EDIT_AUTO_ORDER_THRESHOLD   1071
+#define IDC_EDIT_AUTO_ORDER_QUANTITY    1072
+#define IDC_BUTTON4                     1072
+#define IDC_BUTTON_TEST_AUTO_ORDER      1072
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053
@@ -84,9 +96,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1067
+#define _APS_NEXT_CONTROL_VALUE         1073
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif

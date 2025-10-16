@@ -54,6 +54,9 @@
     <ClInclude Include="CBulkOrderDlg.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="CAutoOrderNotifyDlg.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InventoryManager.cpp">
@@ -84,6 +87,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="CBulkOrderDlg.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="CAutoOrderNotifyDlg.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

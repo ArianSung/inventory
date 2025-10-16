@@ -46,4 +46,12 @@ public:
 	void LoadDbSettings(const DB_CONFIG& dbConfig);
 	// ✅ [추가] DB 설정 저장 버튼 핸들러 선언
 	afx_msg void OnBnClickedButtonSaveDb();
+	BOOL m_bAutoOrderEnable;
+	int m_nAutoOrderThreshold;
+	int m_nAutoOrderQuantity;
+	int m_nAutoOrderInterval;
+	afx_msg void OnBnClickedButtonAutoOrderApply();
+
+	void SaveAutoOrderConfig();       // config.ini에 자동발주 설정 저장
+	void LoadAutoOrderConfig();       // config.ini에서 자동발주 설정 로드
 };
