@@ -11,6 +11,7 @@
 #include "CStatsDlg.h" // '통계' 대화 상자
 #include "CSettingsDlg.h" // '설정' 대화 상자
 #include <algorithm> // 정렬(std::sort) 기능을 사용하기 위해 포함
+#include "CBulkOrderDlg.h" // '대량 발주' 대화 상자
 
 #ifdef _DEBUG
 #define new DEBUG_NEW // 디버그 모드에서 메모리 누수 탐지를 위해 사용
@@ -138,6 +139,10 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 	// 탭 컨트롤과 재고 목록 리스트 컨트롤을 초기화합니다.
 	InitTabs();
 	InitInventoryList();
+
+	// 다중 선택을 허용하기 위해 리스트 컨트롤의 기본 스타일(LVS_SINGLESEL)을 제거합니다.
+	DWORD dwStyle = GetWindowLong(m_listInventory.m_hWnd, GWL_STYLE);
+	SetWindowLong(m_listInventory.m_hWnd, GWL_STYLE, dwStyle & ~LVS_SINGLESEL);
 
 	// 프로그램 시작을 알리는 로그를 남깁니다.
 	AddLog(_T("✅ 프로그램 시작"));
@@ -648,74 +653,115 @@ void CInventoryManagerDlg::UpdateInventoryList()
 }
 
 /**
- * @brief '발주' 버튼 클릭 이벤트 핸들러입니다.
+ * @brief '발주' 버튼 클릭 이벤트 핸들러입니다. (단일/일괄 발주 지원)
  */
 void CInventoryManagerDlg::OnBnClickedButtonOrder()
 {
-	// 리스트에서 선택된 항목의 인덱스를 가져옵니다.
-	int nSelected = m_listInventory.GetNextItem(-1, LVNI_SELECTED);
-	if (nSelected == -1) { // 선택된 항목이 없으면
+	int nSelectedCount = m_listInventory.GetSelectedCount();
+	if (nSelectedCount == 0) {
 		AfxMessageBox(_T("발주할 품목을 선택해주세요."));
 		AddLog(_T("⚠️ 발주: 품목 선택 안 됨"));
 		return;
 	}
 
-	// 선택된 항목에 저장해 둔 고유 ID(OptionID)를 가져옵니다.
-	int nOptionID = (int)m_listInventory.GetItemData(nSelected);
-
-	// m_vecInventory에서 해당 ID를 가진 품목 정보를 찾습니다.
-	INVENTORY_ITEM* pItem = nullptr;
-	for (size_t i = 0; i < m_vecInventory.size(); i++) {
-		if (m_vecInventory[i].nOptionID == nOptionID) { pItem = &m_vecInventory[i]; break; }
-	}
-	if (!pItem) {
-		AfxMessageBox(_T("품목 정보를 찾을 수 없습니다."));
-		AddLog(_T("❌ 발주: 품목 정보 없음"));
-		return;
-	}
-
-	// '발주' 대화 상자를 생성하고, 선택된 품목 정보를 전달합니다.
-	COrderDlg dlg;
-	dlg.m_nOptionID = pItem->nOptionID;
-	dlg.m_strOptionCode = pItem->strOptionCode;
-	dlg.m_strProductName = pItem->strProductName;
-	dlg.m_nCurrentStock = pItem->nStock;
-
-	dlg.m_nWarningThreshold = this->m_nWarningThreshold;
-	dlg.m_nDangerThreshold = this->m_nDangerThreshold;
-
-	// 사용자가 '발주' 대화 상자에서 '확인'을 누르면
-	if (dlg.DoModal() == IDOK)
+	// =============================================================
+	// 분기 1: 한 개의 품목만 선택된 경우 (기존 방식)
+	// =============================================================
+	if (nSelectedCount == 1)
 	{
-		CString strLog;
-		strLog.Format(_T("📦 발주 시도: %s (수량: %d)"), pItem->strOptionCode, dlg.m_nOrderQuantity);
-		AddLog(strLog);
+		POSITION pos = m_listInventory.GetFirstSelectedItemPosition();
+		int nItem = m_listInventory.GetNextSelectedItem(pos);
+		int nOptionID = (int)m_listInventory.GetItemData(nItem);
 
-		if (!m_bDBConnected || m_pDBManager == nullptr) {
-			AfxMessageBox(_T("데이터베이스에 연결되지 않았습니다."));
-			AddLog(_T("❌ 발주 실패: DB 연결 없음"));
-			return;
+		// 기존의 단일 발주 대화상자를 사용합니다.
+		COrderDlg dlg;
+		dlg.m_nOptionID = nOptionID;
+		dlg.m_strOptionCode = m_listInventory.GetItemText(nItem, 1);
+		dlg.m_strProductName = m_listInventory.GetItemText(nItem, 2);
+		dlg.m_nCurrentStock = _ttoi(m_listInventory.GetItemText(nItem, 7)); // 리스트에서 직접 재고 읽기
+		dlg.m_nWarningThreshold = this->m_nWarningThreshold; // 메인 설정값 전달
+		dlg.m_nDangerThreshold = this->m_nDangerThreshold;   // 메인 설정값 전달
+
+		if (dlg.DoModal() == IDOK)
+		{
+			CString strLog;
+			strLog.Format(_T("📦 발주 시도: %s (수량: %d)"), dlg.m_strOptionCode, dlg.m_nOrderQuantity);
+			AddLog(strLog);
+
+			if (!m_bDBConnected || m_pDBManager == nullptr) {
+				AfxMessageBox(_T("데이터베이스에 연결되지 않았습니다."));
+				AddLog(_T("❌ 발주 실패: DB 연결 없음"));
+				return;
+			}
+
+			if (m_pDBManager->AddStock(nOptionID, dlg.m_nOrderQuantity))
+			{
+				strLog.Format(_T("✅ 발주 성공: %s (%d개 추가)"), dlg.m_strOptionCode, dlg.m_nOrderQuantity);
+				AddLog(strLog);
+				AfxMessageBox(_T("발주가 완료되었습니다."));
+				RefreshInventoryData();
+			}
+			else
+			{
+				CString strError; strError.Format(_T("❌ 발주 실패: %s"), m_pDBManager->GetLastError());
+				AddLog(strError);
+				AfxMessageBox(strError);
+			}
+		}
+		else {
+			AddLog(_T("🚫 발주 취소됨"));
+		}
+	}
+	// =============================================================
+	// 분기 2: 여러 개의 품목이 선택된 경우 (새로운 방식)
+	// =============================================================
+	else
+	{
+		// 선택된 모든 품목의 ID를 벡터에 저장합니다.
+		std::vector<int> vecOptionIDs;
+		POSITION pos = m_listInventory.GetFirstSelectedItemPosition();
+		while (pos)
+		{
+			int nItem = m_listInventory.GetNextSelectedItem(pos);
+			vecOptionIDs.push_back((int)m_listInventory.GetItemData(nItem));
 		}
 
-		// DB에 재고 수량 추가를 요청합니다.
-		BOOL bResult = m_pDBManager->AddStock(nOptionID, dlg.m_nOrderQuantity);
-		if (bResult)
+		// 새로운 일괄 발주 대화상자를 생성합니다.
+		CBulkOrderDlg dlg;
+		dlg.m_nSelectedItemCount = vecOptionIDs.size(); // 선택된 개수를 전달
+
+		// 사용자가 '확인'을 누르면
+		if (dlg.DoModal() == IDOK)
 		{
-			strLog.Format(_T("✅ 발주 성공: %s (%d개, %d → %d)"),
-				pItem->strOptionCode, dlg.m_nOrderQuantity, pItem->nStock, pItem->nStock + dlg.m_nOrderQuantity);
+			int nQuantity = dlg.m_nOrderQuantity; // 사용자가 입력한 발주 수량
+			CString strLog;
+			strLog.Format(_T("📦 %d개 품목에 대해 %d개씩 일괄 발주 시도..."), (int)vecOptionIDs.size(), nQuantity);
 			AddLog(strLog);
-			AfxMessageBox(_T("발주가 완료되었습니다."));
-			RefreshInventoryData(); // 변경된 내용을 반영하기 위해 목록을 새로고침
+
+			if (!m_bDBConnected || m_pDBManager == nullptr) {
+				AfxMessageBox(_T("데이터베이스에 연결되지 않았습니다."));
+				AddLog(_T("❌ 발주 실패: DB 연결 없음"));
+				return;
+			}
+
+			// DBManager의 일괄 발주 함수를 호출합니다.
+			if (m_pDBManager->AddStockToItems(vecOptionIDs, nQuantity))
+			{
+				AddLog(_T("✅ 일괄 발주 성공!"));
+				AfxMessageBox(_T("발주가 완료되었습니다."));
+				RefreshInventoryData(); // 성공 시 목록 새로고침
+			}
+			else
+			{
+				CString strError; strError.Format(_T("❌ 일괄 발주 실패: %s"), m_pDBManager->GetLastError());
+				AddLog(strError);
+				AfxMessageBox(strError);
+			}
 		}
 		else
 		{
-			CString strError; strError.Format(_T("❌ 발주 실패: %s"), m_pDBManager->GetLastError());
-			AddLog(strError);
-			AfxMessageBox(strError);
+			AddLog(_T("🚫 일괄 발주 취소됨"));
 		}
-	}
-	else {
-		AddLog(_T("🚫 발주 취소됨"));
 	}
 }
 
@@ -751,6 +797,13 @@ void CInventoryManagerDlg::OnClose()
  */
 void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult)
 {
+	// 여러 항목이 선택된 경우, 재고 수정 기능을 실행하지 않고 즉시 종료합니다.
+	if (m_listInventory.GetSelectedCount() > 1)
+	{
+		*pResult = 0; // 메시지 처리를 완료했다고 알림
+		return;       // 함수 종료
+	}
+
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 	int nItem = pNMItemActivate->iItem; // 더블 클릭된 아이템의 인덱스
 
@@ -818,19 +871,39 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
  */
 void CInventoryManagerDlg::OnBnClickedButton2()
 {
-	int nSelectedItem = m_listInventory.GetNextItem(-1, LVNI_SELECTED);
-	if (nSelectedItem == -1) {
+	// 리스트에서 선택된 모든 항목의 위치(POSITION)를 가져옵니다.
+	POSITION pos = m_listInventory.GetFirstSelectedItemPosition();
+	if (pos == nullptr) {
 		AfxMessageBox(_T("삭제할 품목을 먼저 선택해주세요."));
 		AddLog(_T("⚠️ 삭제: 품목이 선택되지 않음"));
 		return;
 	}
 
-	int nOptionID = (int)m_listInventory.GetItemData(nSelectedItem);
-	CString strProductCode = m_listInventory.GetItemText(nSelectedItem, 1);
+	std::vector<int> vecOptionIDs;
+	CString strProductList; // 확인 메시지에 보여줄 품번 목록
+	int nItemCount = 0;
 
-	// 사용자에게 정말 삭제할 것인지 다시 한번 확인받습니다.
+	// 루프를 돌며 선택된 모든 항목의 정보를 수집합니다.
+	while (pos)
+	{
+		int nItem = m_listInventory.GetNextSelectedItem(pos);
+		vecOptionIDs.push_back((int)m_listInventory.GetItemData(nItem));
+
+		if (nItemCount < 5) // 확인 창에는 최대 5개 품목 이름만 표시
+		{
+			strProductList += _T("- ") + m_listInventory.GetItemText(nItem, 1) + _T("\n");
+		}
+		nItemCount++;
+	}
+
+	if (nItemCount > 5)
+	{
+		strProductList.AppendFormat(_T("... 외 %d개"), nItemCount - 5);
+	}
+
+	// 사용자에게 최종 확인을 받습니다.
 	CString strConfirmMsg;
-	strConfirmMsg.Format(_T("품번 '%s'을(를) 정말로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다."), strProductCode);
+	strConfirmMsg.Format(_T("총 %d개의 품목을 정말로 삭제하시겠습니까?\n\n%s\n이 작업은 되돌릴 수 없습니다."), nItemCount, strProductList);
 	if (AfxMessageBox(strConfirmMsg, MB_YESNO | MB_ICONWARNING) != IDYES) {
 		AddLog(_T("🚫 삭제가 사용자에 의해 취소됨"));
 		return;
@@ -842,12 +915,12 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 		return;
 	}
 
-	CString strLog; strLog.Format(_T("🗑️ 삭제 시도: %s (OptionID: %d)"), strProductCode, nOptionID);
+	CString strLog;
+	strLog.Format(_T("🗑️ %d개 품목 일괄 삭제 시도..."), nItemCount);
 	AddLog(strLog);
 
-	// DB에 품목 삭제를 요청합니다.
-	BOOL bResult = m_pDBManager->DeleteInventoryItem(nOptionID);
-	if (bResult) {
+	// DB에 품목 일괄 삭제를 요청합니다.
+	if (m_pDBManager->DeleteInventoryItems(vecOptionIDs)) {
 		AfxMessageBox(_T("선택한 품목이 성공적으로 삭제되었습니다."));
 		AddLog(_T("✅ 삭제 성공!"));
 		RefreshInventoryData(); // 화면 새로고침

@@ -630,3 +630,104 @@ BOOL CDBManager::SelectToRows(const CString& sql, std::vector<std::vector<CStrin
 	FreeResult();
 	return TRUE;
 }
+
+/**
+ * @brief 여러 품목을 한 번의 트랜잭션으로 삭제합니다. (일괄 삭제)
+ * @param vecOptionIDs 삭제할 option_id의 벡터
+ * @return BOOL 성공 시 TRUE, 실패 시 FALSE
+ */
+BOOL CDBManager::DeleteInventoryItems(const std::vector<int>& vecOptionIDs)
+{
+	if (!m_bConnected) {
+		SetError(_T("DB에 연결되지 않았습니다."));
+		return FALSE;
+	}
+	if (vecOptionIDs.empty()) {
+		return TRUE; // 삭제할 것이 없으면 성공으로 처리
+	}
+
+	// ID들을 콤마로 구분된 문자열로 만듭니다. (예: "10,25,33")
+	CString strIDs;
+	for (size_t i = 0; i < vecOptionIDs.size(); ++i) {
+		strIDs.AppendFormat(_T("%d"), vecOptionIDs[i]);
+		if (i < vecOptionIDs.size() - 1) {
+			strIDs.Append(_T(","));
+		}
+	}
+
+	// 데이터 무결성을 위해 트랜잭션 시작
+	if (mysql_query(m_pConnection, "START TRANSACTION")) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		return FALSE;
+	}
+
+	CString strQuery;
+
+	// 1. 자식 테이블(order_details) 데이터 삭제
+	strQuery.Format(_T("DELETE FROM order_details WHERE option_id IN (%s)"), strIDs);
+	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
+		return FALSE;
+	}
+
+	// 2. 자식 테이블(cart) 데이터 삭제
+	strQuery.Format(_T("DELETE FROM cart WHERE option_id IN (%s)"), strIDs);
+	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
+		return FALSE;
+	}
+
+	// 3. 부모 테이블(product_options) 데이터 삭제
+	strQuery.Format(_T("DELETE FROM product_options WHERE option_id IN (%s)"), strIDs);
+	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery)) != 0) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		mysql_query(m_pConnection, "ROLLBACK"); // 실패 시 롤백
+		return FALSE;
+	}
+
+	// 4. 모든 쿼리가 성공했으면 최종 적용 (커밋)
+	if (mysql_query(m_pConnection, "COMMIT")) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		mysql_query(m_pConnection, "ROLLBACK");
+		return FALSE;
+	}
+
+	SetError(_T(""), 0);
+	return TRUE;
+}
+
+/**
+ * @brief 여러 품목의 재고를 한 번에 추가합니다. (일괄 발주)
+ * @param vecOptionIDs 재고를 추가할 option_id의 벡터
+ * @param nQuantity 각 품목에 추가할 수량
+ * @return BOOL 성공 시 TRUE, 실패 시 FALSE
+ */
+BOOL CDBManager::AddStockToItems(const std::vector<int>& vecOptionIDs, int nQuantity)
+{
+	if (!m_bConnected) {
+		SetError(_T("데이터베이스에 연결되지 않았습니다."));
+		return FALSE;
+	}
+	if (vecOptionIDs.empty() || nQuantity <= 0) {
+		SetError(_T("발주할 품목이 없거나 수량이 올바르지 않습니다."));
+		return FALSE;
+	}
+
+	// [1, 2, 3] 형태의 ID 벡터를 "1,2,3" 형태의 문자열로 변환합니다.
+	CString strIDs;
+	for (size_t i = 0; i < vecOptionIDs.size(); ++i) {
+		strIDs.AppendFormat(_T("%d"), vecOptionIDs[i]);
+		if (i < vecOptionIDs.size() - 1) {
+			strIDs.Append(_T(","));
+		}
+	}
+
+	// IN (...) 구문을 사용하여 한 번에 모든 품목의 재고를 업데이트하는 쿼리를 만듭니다.
+	CString strQuery;
+	strQuery.Format(_T("UPDATE product_options SET stock = stock + %d WHERE option_id IN (%s)"), nQuantity, strIDs);
+
+	// ExecuteQuery 함수를 호출하여 쿼리를 실행합니다.
+	return ExecuteQuery(strQuery);
+}
