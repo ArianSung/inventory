@@ -126,6 +126,7 @@ public:
     afx_msg void OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult);
     afx_msg void OnBnClickedButton2();
     afx_msg void OnBnClickedButton3();
+    afx_msg void OnBnClickedBtnAiInsights(); // AI 인사이트 표시
 
     // =========================
     // 검색 캐시/핸들러

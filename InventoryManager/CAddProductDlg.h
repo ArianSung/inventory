@@ -46,4 +46,5 @@ public:
 	afx_msg void OnCbnSelchangeComboColor();
 	afx_msg void OnCbnSelchangeComboSize();
 	afx_msg void OnCbnSelchangeComboWere(); // 사용자님이 사용하는 함수명 그대로 유지
+	afx_msg void OnBnClickedBtnGenerateDesc(); // Gemini AI로 설명 생성
 };

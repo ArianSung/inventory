@@ -4,6 +4,7 @@
 #pragma once
 #include "afxdialogex.h"
 #include "DBManager.h" // ✅ [추가] DB_CONFIG 구조체를 사용하기 위해 include
+#include "GeminiManager.h" // Gemini AI 기능 사용
 
 // CInventoryManagerDlg 전방 선언
 class CInventoryManagerDlg;
@@ -46,4 +47,12 @@ public:
 	void LoadDbSettings(const DB_CONFIG& dbConfig);
 	// ✅ [추가] DB 설정 저장 버튼 핸들러 선언
 	afx_msg void OnBnClickedButtonSaveDb();
+
+	// Gemini AI 설정
+	CString m_strGeminiApiKey;
+	BOOL m_bEnableGemini;
+	void LoadGeminiSettings();
+	void SaveGeminiSettings();
+	afx_msg void OnBnClickedCheckEnableGemini();
+	afx_msg void OnBnClickedButtonTestGemini();
 };
