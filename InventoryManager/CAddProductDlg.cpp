@@ -6,6 +6,7 @@
 #include "afxdialogex.h"
 #include "CAddProductDlg.h"
 #include "DBManager.h"
+#include "GeminiManager.h"
 
 // CAddProductDlg 대화 상자
 
@@ -179,6 +180,7 @@ BEGIN_MESSAGE_MAP(CAddProductDlg, CDialogEx)
     ON_CBN_SELCHANGE(IDC_COMBO_COLOR, &CAddProductDlg::OnCbnSelchangeComboColor)
     ON_CBN_SELCHANGE(IDC_COMBO_SIZE, &CAddProductDlg::OnCbnSelchangeComboSize)
     ON_CBN_SELCHANGE(IDC_COMBO_WERE, &CAddProductDlg::OnCbnSelchangeComboWere)
+    ON_BN_CLICKED(IDC_BTN_GENERATE_DESC, &CAddProductDlg::OnBnClickedBtnGenerateDesc)
 END_MESSAGE_MAP()
 
 
@@ -202,4 +204,69 @@ void CAddProductDlg::OnCbnSelchangeComboSize()
 void CAddProductDlg::OnCbnSelchangeComboWere()
 {
     UpdatePreviewCode();
+}
+
+// ========================================
+// Gemini AI로 제품 설명 생성
+// ========================================
+void CAddProductDlg::OnBnClickedBtnGenerateDesc()
+{
+    UpdateData(TRUE);
+
+    // 제품명이 입력되지 않은 경우
+    if (m_strProductName.IsEmpty())
+    {
+        AfxMessageBox(_T("제품명을 먼저 입력해주세요."));
+        return;
+    }
+
+    // 브랜드와 카테고리 가져오기
+    CString strBrand, strCategory;
+    int nIndex;
+
+    nIndex = m_comboBrand.GetCurSel();
+    if (nIndex != CB_ERR)
+    {
+        m_comboBrand.GetLBText(nIndex, strBrand);
+    }
+
+    nIndex = m_comboWare.GetCurSel();
+    if (nIndex != CB_ERR)
+    {
+        m_comboWare.GetLBText(nIndex, strCategory);
+    }
+
+    // Gemini Manager 인스턴스 가져오기
+    CGeminiManager* pGemini = CGeminiManager::GetInstance();
+    if (!pGemini || !pGemini->IsEnabled())
+    {
+        AfxMessageBox(_T("Gemini AI 기능이 활성화되지 않았습니다.\n설정 탭에서 API 키를 입력하고 활성화해주세요."));
+        return;
+    }
+
+    // 설명 생성 중 메시지 표시
+    SetDlgItemText(IDC_EDIT_DESCRIPTION, _T("AI가 설명을 생성하는 중입니다..."));
+
+    // Gemini API 호출
+    CString strGeneratedDesc = pGemini->GenerateProductDescription(
+        m_strProductName,
+        strBrand.IsEmpty() ? _T("일반") : strBrand,
+        strCategory.IsEmpty() ? _T("일반") : strCategory
+    );
+
+    if (strGeneratedDesc.IsEmpty())
+    {
+        CString strError = pGemini->GetLastError();
+        CString strMsg;
+        strMsg.Format(_T("설명 생성에 실패했습니다.\n오류: %s"), strError);
+        AfxMessageBox(strMsg);
+        SetDlgItemText(IDC_EDIT_DESCRIPTION, _T(""));
+    }
+    else
+    {
+        // 생성된 설명을 편집 컨트롤에 설정
+        m_strDescription = strGeneratedDesc;
+        UpdateData(FALSE);
+        AfxMessageBox(_T("AI가 제품 설명을 생성했습니다!\n필요시 수정하실 수 있습니다."));
+    }
 }

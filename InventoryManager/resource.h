@@ -80,6 +80,8 @@
 #define IDC_CHECK_ENABLE_GEMINI         4069
 #define IDC_BUTTON_TEST_GEMINI          4070
 #define IDC_STATIC_GEMINI_STATUS        4071
+#define IDC_BTN_GENERATE_DESC           4072
+#define IDC_BTN_AI_INSIGHTS             4073
 
 // Next default values for new objects
 // 
@@ -87,7 +89,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         4072
+#define _APS_NEXT_CONTROL_VALUE         4074
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif

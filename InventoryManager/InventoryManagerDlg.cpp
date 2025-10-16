@@ -10,6 +10,7 @@
 #include "COrderDlg.h" // '발주' 대화 상자
 #include "CStatsDlg.h" // '통계' 대화 상자
 #include "CSettingsDlg.h" // '설정' 대화 상자
+#include "GeminiManager.h" // Gemini AI 관리자
 #include <algorithm> // 정렬(std::sort) 기능을 사용하기 위해 포함
 
 #ifdef _DEBUG
@@ -105,6 +106,7 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON2, &CInventoryManagerDlg::OnBnClickedButton2) // '삭제' 버튼
 	ON_BN_CLICKED(IDC_BUTTON3, &CInventoryManagerDlg::OnBnClickedButton3) // '상품 추가' 버튼
 	ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // '검색' 버튼
+	ON_BN_CLICKED(IDC_BTN_AI_INSIGHTS, &CInventoryManagerDlg::OnBnClickedBtnAiInsights) // 'AI 인사이트' 버튼
 	// IDC_COMBO_FILTER_BRAND ID를 가진 콤보 박스의 선택이 변경되면 OnSelchangeComboFilter 함수를 호출
 	ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
 	ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
@@ -978,6 +980,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	GetDlgItem(IDC_BUTTON_ORDER)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_BUTTON2)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_BUTTON3)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_BTN_AI_INSIGHTS)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_BRAND)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_CATEGORY)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
@@ -1284,4 +1287,58 @@ void CInventoryManagerDlg::SaveThresholdsToConfig()
 	// m_nDangerThreshold 값을 문자열로 변환하여 [Settings] 섹션에 저장
 	strValue.Format(_T("%d"), m_nDangerThreshold);
 	WritePrivateProfileString(_T("Settings"), _T("DangerThreshold"), strValue, strConfigFile);
+}
+// ========================================
+// AI 인사이트 버튼 핸들러
+// ========================================
+void CInventoryManagerDlg::OnBnClickedBtnAiInsights()
+{
+CGeminiManager* pGemini = CGeminiManager::GetInstance();
+if (!pGemini || !pGemini->IsEnabled())
+{
+AfxMessageBox(_T("Gemini AI 기능이 활성화되지 않았습니다.\n설정 탭에서 API 키를 입력하고 활성화해주세요."));
+return;
+}
+
+// 재고가 부족한 항목 수집
+std::vector<CString> vecLowStockItems;
+for (const auto& item : m_vecInventory)
+{
+if (item.nStock <= m_nWarningThreshold)
+{
+CString strItem;
+strItem.Format(_T("%s (%d개)"), item.strProductName, item.nStock);
+vecLowStockItems.push_back(strItem);
+}
+}
+
+if (vecLowStockItems.empty())
+{
+AfxMessageBox(_T("현재 재고가 부족한 상품이 없습니다."));
+return;
+}
+
+AddLog(_T("AI 인사이트를 생성하는 중..."));
+
+// Gemini API 호출
+CString strInsight = pGemini->GetInventoryInsight(vecLowStockItems);
+
+if (strInsight.IsEmpty())
+{
+CString strError = pGemini->GetLastError();
+CString strMsg;
+strMsg.Format(_T("AI 인사이트 생성에 실패했습니다.\n오류: %s"), strError);
+AddLog(strMsg);
+AfxMessageBox(strMsg);
+}
+else
+{
+AddLog(_T("=== AI 재고 인사이트 ==="));
+AddLog(strInsight);
+AddLog(_T("========================"));
+
+CString strMsg;
+strMsg.Format(_T("AI 재고 인사이트:\n\n%s"), strInsight);
+AfxMessageBox(strMsg);
+}
 }
