@@ -47,6 +47,13 @@
 #define IDC_LIST1                       1044
 #define IDC_LIST2                       1050
 #define IDC_PLACE_STATS                 1051
+#define IDC_STATIC_GROUP                4060
+#define IDC_EDIT_DB_HOST                4061
+#define IDC_EDIT_DB_PORT                4062
+#define IDC_EDIT_DB_NAME                4063
+#define IDC_EDIT_DB_USER                4064
+#define IDC_EDIT_DB_PASS                4065
+#define IDC_BTN_SAVE_DB                 4066
 #define IDC_STATIC_PERIOD_LABEL         1058
 #define IDC_DATETIMEPICKER_START        1059
 #define IDC_DATETIMEPICKER_END          1060
@@ -75,7 +82,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        142
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1062
+#define _APS_NEXT_CONTROL_VALUE         1065
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif

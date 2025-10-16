@@ -1,9 +1,14 @@
-﻿#pragma once
-#include "afxdialogex.h"
+﻿// CSettingsDlg.h : 헤더 파일
+//
 
-// CInventoryManagerDlg 클래스를 미리 알려줌 (순환 참조 방지)
+#pragma once
+#include "afxdialogex.h"
+#include "DBManager.h" // ✅ [추가] DB_CONFIG 구조체를 사용하기 위해 include
+
+// CInventoryManagerDlg 전방 선언
 class CInventoryManagerDlg;
 
+// CSettingsDlg 대화 상자
 class CSettingsDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CSettingsDlg)
@@ -21,21 +26,24 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 지원입니다.
 
 	DECLARE_MESSAGE_MAP()
-
 private:
-	// 컨트롤 핸들링을 위한 멤버 변수
-	CEdit m_editWarning;
-	CEdit m_editDanger;
-
-	// 메인 다이얼로그와 안전하게 통신하기 위한 포인터
+	int m_nWarningThreshold;
+	int m_nDangerThreshold;
 	CInventoryManagerDlg* m_pParentDlg;
-
 public:
-	virtual BOOL OnInitDialog();
+	void SetParentDlg(CInventoryManagerDlg* pDlg);
 	afx_msg void OnBnClickedButtonApply();
-
-	// 메인 다이얼로그 포인터를 설정하는 함수
-	void SetParentDlg(CInventoryManagerDlg* pParent);
-	// 메인 다이얼로그로부터 현재 설정 값을 불러오는 함수
 	void LoadSettings(int nWarning, int nDanger);
+
+	// ✅ [추가] DB 설정 UI와 연결될 변수들
+	CString m_strDbHost;
+	UINT    m_nDbPort;
+	CString m_strDbName;
+	CString m_strDbUser;
+	CString m_strDbPass;
+
+	// ✅ [추가] 메인 다이얼로그의 DB 설정을 불러오는 함수 선언
+	void LoadDbSettings(const DB_CONFIG& dbConfig);
+	// ✅ [추가] DB 설정 저장 버튼 핸들러 선언
+	afx_msg void OnBnClickedButtonSaveDb();
 };

@@ -150,6 +150,7 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 
 	// 데이터베이스에 연결을 시도합니다.
 	AddLog(_T("🔌 데이터베이스 연결 시도 중..."));
+	LoadDbConfig();
 	ConnectDatabase();
 
 	// 데이터베이스 연결에 성공한 경우에만 데이터 관련 작업을 수행합니다.
@@ -377,27 +378,29 @@ void CInventoryManagerDlg::ConnectDatabase()
 	m_pDBManager = CDBManager::GetInstance();
 	if (m_pDBManager == nullptr)
 	{
-		AddLog(_T("❌ DB 관리자 초기화 실패"));
+		AddLog	(_T("❌ DB 관리자 초기화 실패"));
 		m_bDBConnected = FALSE;
 		return;
 	}
 
-	// DB 연결 정보를 설정합니다.
-	DB_CONFIG config;
-	config.strHost = _T("192.168.0.92");
-	config.nPort = 3306;
-	config.strDatabase = _T("themost_db");
-	config.strUser = _T("mfcuser");
-	config.strPassword = _T("Moble1234");
+	//// DB 연결 정보를 설정합니다.
+	//DB_CONFIG config;
+	//config.strHost = _T("192.168.0.92");
+	//config.nPort = 3306;
+	//config.strDatabase = _T("themost_db");
+	//config.strUser = _T("mfcuser");
+	//config.strPassword = _T("Moble1234");
 
 	// 설정된 정보로 DB 연결을 시도합니다.
-	BOOL bResult = m_pDBManager->Connect(config);
+	//[수정] m_dbConfig 변수를 사용하도록 수정
+	BOOL bResult = m_pDBManager->Connect(m_dbConfig);
 
+	//[수정] 로그를 출력할 때도 m_dbConfig 변수를 사용하도록 수정
 	if (bResult)
 	{
 		AddLog(_T("✅ 데이터베이스 연결 성공!"));
 		CString strInfo;
-		strInfo.Format(_T("📊 DB: %s@%s:%d"), config.strDatabase, config.strHost, config.nPort);
+		strInfo.Format(_T("📊 DB: %s@%s:%d"), m_dbConfig.strDatabase, m_dbConfig.strHost, m_dbConfig.nPort);
 		AddLog(strInfo);
 		m_bDBConnected = TRUE;
 	}
@@ -992,7 +995,12 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	// '설정' 탭을 선택한 경우, 설정 다이얼로그를 보여줍니다.
 	if (m_pSettingsDlg) {
 		if (showSettings) {
-			m_pSettingsDlg->LoadSettings(m_nWarningThreshold, m_nDangerThreshold); // 현재 설정값을 로드하여 표시
+			// 기존 임계값 설정 로드
+			m_pSettingsDlg->LoadSettings(m_nWarningThreshold, m_nDangerThreshold);
+
+			// [추가된 핵심 코드] 현재 DB 정보를 설정 탭의 입력란에 로드합니다.
+			m_pSettingsDlg->LoadDbSettings(m_dbConfig);
+
 			m_pSettingsDlg->ShowWindow(SW_SHOW);
 		}
 		else {
@@ -1153,4 +1161,102 @@ void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
 	// 변경된 기준(주의/위험)을 리스트의 '상태' 컬럼에 즉시 반영하기 위해 새로고침합니다.
 	AddLog(_T("🔄 설정 적용을 위해 목록을 새로고침합니다."));
 	RefreshInventoryData();
+}
+
+// ✅ [추가] config.ini 파일의 전체 경로를 만들어주는 함수
+CString GetConfigFilePath()
+{
+	TCHAR szPath[MAX_PATH];
+	GetModuleFileName(NULL, szPath, MAX_PATH); // 실행 파일의 전체 경로를 얻어옴
+	CString strPath(szPath);
+	int nPos = strPath.ReverseFind('\\');
+	if (nPos != -1)
+	{
+		strPath = strPath.Left(nPos); // 경로에서 파일 이름(InventoryManager.exe)만 제거
+	}
+	return strPath + _T("\\config.ini"); // 실행 파일 경로에 config.ini를 덧붙여 반환
+}
+
+// ✅ [추가] config.ini 파일에서 DB 정보를 읽어와 m_dbConfig 변수에 저장하는 함수
+void CInventoryManagerDlg::LoadDbConfig()
+{
+	CString strConfigFile = GetConfigFilePath();
+
+	// ini 파일에서 값을 읽어옵니다. 만약 키가 없으면 지정된 기본값을 사용합니다.
+	// GetPrivateProfileString(섹션, 키, 기본값, 저장할버퍼, 버퍼크기, 파일경로)
+	TCHAR szHost[256], szDatabase[256], szUser[256], szPassword[256];
+
+	GetPrivateProfileString(_T("Database"), _T("Host"), _T("192.168.0.92"), szHost, 256, strConfigFile);
+	m_dbConfig.strHost = szHost;
+
+	m_dbConfig.nPort = GetPrivateProfileInt(_T("Database"), _T("Port"), 3306, strConfigFile);
+
+	GetPrivateProfileString(_T("Database"), _T("DatabaseName"), _T("themost_db"), szDatabase, 256, strConfigFile);
+	m_dbConfig.strDatabase = szDatabase;
+
+	GetPrivateProfileString(_T("Database"), _T("User"), _T("mfcuser"), szUser, 256, strConfigFile);
+	m_dbConfig.strUser = szUser;
+
+	GetPrivateProfileString(_T("Database"), _T("Password"), _T("Moble1234"), szPassword, 256, strConfigFile);
+	m_dbConfig.strPassword = szPassword;
+
+	// 만약 config.ini 파일이 존재하지 않았다면, 방금 읽어온 기본값으로 파일을 새로 저장합니다.
+	// 이 로직 덕분에 프로그램을 처음 실행하면 자동으로 기존 정보와 동일한 config.ini가 생성됩니다.
+	if (GetFileAttributes(strConfigFile) == INVALID_FILE_ATTRIBUTES)
+	{
+		SaveDbConfig();
+	}
+}
+
+// ✅ [추가] 현재 m_dbConfig 변수에 저장된 DB 정보를 config.ini 파일에 기록하는 함수
+void CInventoryManagerDlg::SaveDbConfig()
+{
+	CString strConfigFile = GetConfigFilePath();
+	CString strPort;
+	strPort.Format(_T("%d"), m_dbConfig.nPort);
+
+	WritePrivateProfileString(_T("Database"), _T("Host"), m_dbConfig.strHost, strConfigFile);
+	WritePrivateProfileString(_T("Database"), _T("Port"), strPort, strConfigFile);
+	WritePrivateProfileString(_T("Database"), _T("DatabaseName"), m_dbConfig.strDatabase, strConfigFile);
+	WritePrivateProfileString(_T("Database"), _T("User"), m_dbConfig.strUser, strConfigFile);
+	WritePrivateProfileString(_T("Database"), _T("Password"), m_dbConfig.strPassword, strConfigFile);
+}
+
+// ✅ [추가] CSettingsDlg로부터 새로운 DB 설정을 받아 재연결을 수행하는 함수
+void CInventoryManagerDlg::UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig)
+{
+	AddLog(_T("⚙️ DB 설정 변경 시도..."));
+
+	// 1. 멤버 변수를 새로운 설정으로 업데이트합니다.
+	m_dbConfig = newConfig;
+
+	// 2. 새로운 설정을 config.ini 파일에 저장합니다.
+	SaveDbConfig();
+	AddLog(_T("💾 새로운 DB 설정을 파일에 저장했습니다."));
+
+	// 3. 기존 DB 연결을 끊습니다.
+	DisconnectDatabase();
+
+	// 4. 새로운 정보로 다시 연결을 시도합니다.
+	AddLog(_T("🔌 새로운 정보로 재연결 시도 중..."));
+	ConnectDatabase();
+
+	// 5. 재연결 결과에 따라 후속 조치를 취합니다.
+	if (m_bDBConnected)
+	{
+		AfxMessageBox(_T("✅ 데이터베이스에 성공적으로 다시 연결되었습니다."));
+		AddLog(_T("✅ 재연결 성공! 목록을 새로고침합니다."));
+
+		// 재고 목록, 필터 등을 모두 새로고침합니다.
+		RefreshInventoryData();
+	}
+	else
+	{
+		// 실패 메시지는 ConnectDatabase 함수 내부에서 이미 처리하므로 추가적인 MessageBox는 필요 없습니다.
+		AddLog(_T("❌ 재연결 실패. 이전 설정으로 되돌리거나 설정을 다시 확인해주세요."));
+
+		// 연결 실패 시, 목록을 비워서 오래된 정보가 보이는 것을 방지합니다.
+		m_vecInventory.clear();
+		UpdateInventoryList();
+	}
 }
