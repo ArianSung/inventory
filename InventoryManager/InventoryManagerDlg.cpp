@@ -1,23 +1,24 @@
 ﻿// InventoryManagerDlg.cpp: 구현 파일
-//
+// 이 파일은 재고 관리 프로그램의 메인 대화 상자(UI)에 대한 모든 로직을 담고 있습니다.
 
-#include "pch.h"
-#include "framework.h"
-#include "InventoryManager.h"
-#include "InventoryManagerDlg.h"
-#include "afxdialogex.h"
-#include "CAddProductDlg.h"
-#include "COrderDlg.h"
-#include "CStatsDlg.h"
-#include "CSettingsDlg.h"
-#include <algorithm> 
-
+#include "pch.h" // 미리 컴파일된 헤더 (컴파일 속도 향상)
+#include "framework.h" // MFC 기본 프레임워크
+#include "InventoryManager.h" // 메인 애플리케이션 클래스
+#include "InventoryManagerDlg.h" // 현재 클래스의 헤더 파일
+#include "afxdialogex.h" // 대화 상자 확장을 위한 클래스
+#include "CAddProductDlg.h" // '상품 추가' 대화 상자
+#include "COrderDlg.h" // '발주' 대화 상자
+#include "CStatsDlg.h" // '통계' 대화 상자
+#include "CSettingsDlg.h" // '설정' 대화 상자
+#include <algorithm> // 정렬(std::sort) 기능을 사용하기 위해 포함
 
 #ifdef _DEBUG
-#define new DEBUG_NEW
+#define new DEBUG_NEW // 디버그 모드에서 메모리 누수 탐지를 위해 사용
 #endif
 
-// === [소문자 변환 헬퍼] ==================================
+// === [헬퍼 함수] ==================================
+// CString 객체를 소문자로 변환하여 반환하는 간단한 도우미 함수입니다.
+// 검색 기능에서 대소문자 구분 없이 비교할 때 유용하게 사용됩니다.
 static CString ToLower(const CString& s) {
 	CString t = s;
 	t.MakeLower();
@@ -26,34 +27,44 @@ static CString ToLower(const CString& s) {
 // =========================================================
 
 
-// CInventoryManagerDlg 대화 상자
+// CInventoryManagerDlg 대화 상자 클래스 정의 시작
 
-// 생성자
+/**
+ * @brief CInventoryManagerDlg 클래스의 생성자입니다.
+ * @details 대화 상자가 생성될 때 가장 먼저 호출되며, 멤버 변수들을 초기값으로 설정합니다.
+ * @param pParent 부모 윈도우를 가리키는 포인터입니다. 기본값은 nullptr입니다.
+ */
 CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
-    : CDialogEx(IDD_INVENTORYMANAGER_DIALOG, pParent)
-    , m_nCurrentTab(0)
-    , m_nDangerThreshold(10)    // 위험 기준 기본값 10
-    , m_nWarningThreshold(30)   // 주의 기준 기본값 30
-    , m_nTimerID(0)             // 타이머 ID 초기화
-    , m_nRefreshInterval(30)    // 기본 30초
-    , m_bAutoRefresh(TRUE)      // 자동 새로고침 활성화
-    , m_pDBManager(nullptr)
-    , m_bDBConnected(FALSE)
-    , m_pSettingsDlg(nullptr) // 👈 [수정] 포인터 초기화
-    , m_nSortColumn(7)          // 기본 정렬: 7번 '재고' 컬럼
-    , m_bSortAscending(true)    // 기본 정렬: 오름차순
+	: CDialogEx(IDD_INVENTORYMANAGER_DIALOG, pParent)
+	, m_nCurrentTab(0) // 현재 선택된 탭 인덱스 (0: 재고현황)
+	, m_nDangerThreshold(10)    // '위험' 재고 기준 수량 (기본값 10개 미만)
+	, m_nWarningThreshold(30)   // '주의' 재고 기준 수량 (기본값 30개 미만)
+	, m_nTimerID(0)             // 타이머 ID (0은 비활성 상태)
+	, m_nRefreshInterval(30)    // 자동 새로고침 간격 (기본 30초)
+	, m_bAutoRefresh(TRUE)      // 자동 새로고침 기능 활성화 여부
+	, m_pDBManager(nullptr)     // 데이터베이스 관리자 포인터
+	, m_bDBConnected(FALSE)     // 데이터베이스 연결 상태
+	, m_pSettingsDlg(nullptr)   // 설정 대화 상자 포인터
+	, m_nSortColumn(7)          // 기본 정렬 컬럼 인덱스 (7번 '재고' 컬럼)
+	, m_bSortAscending(true)    // 기본 정렬 방식 (true: 오름차순, false: 내림차순)
 {
+	// 프로그램 아이콘을 로드합니다.
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
-// 소멸자
+/**
+ * @brief CInventoryManagerDlg 클래스의 소멸자입니다.
+ * @details 대화 상자가 파괴될 때 호출되며, 할당된 리소스들을 해제합니다.
+ * (예: 타이머 종료, 데이터베이스 연결 해제, 동적 할당된 메모리 해제)
+ */
 CInventoryManagerDlg::~CInventoryManagerDlg()
 {
-	if (m_nTimerID != 0) { KillTimer(m_nTimerID); m_nTimerID = 0; }
-	DisconnectDatabase();
-	CDBManager::DestroyInstance();
+	if (m_nTimerID != 0) { KillTimer(m_nTimerID); m_nTimerID = 0; } // 타이머가 실행 중이면 종료
+	DisconnectDatabase(); // 데이터베이스 연결 해제
+	CDBManager::DestroyInstance(); // DB 관리자 싱글톤 인스턴스 파괴
 	m_pDBManager = nullptr;
-	// 👈 [수정] 동적으로 할당된 CSettingsDlg 메모리 해제
+
+	// 설정 대화 상자 객체가 동적으로 할당되었으므로 메모리를 해제합니다.
 	if (m_pSettingsDlg)
 	{
 		delete m_pSettingsDlg;
@@ -61,9 +72,15 @@ CInventoryManagerDlg::~CInventoryManagerDlg()
 	}
 }
 
+/**
+ * @brief DoDataExchange 함수는 대화 상자의 컨트롤과 멤버 변수 간의 데이터 교환을 담당합니다.
+ * @details DDX (Dialog Data Exchange) 매커니즘을 통해 UI 컨트롤과 변수를 연결합니다.
+ * @param pDX 데이터 교환을 위한 CDataExchange 객체 포인터입니다.
+ */
 void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	// IDC_TAB_MAIN 이라는 ID를 가진 탭 컨트롤을 m_tabMain 변수와 연결합니다.
 	DDX_Control(pDX, IDC_TAB_MAIN, m_tabMain);
 	DDX_Control(pDX, IDC_EDIT_LOG, m_editLog);
 	DDX_Control(pDX, IDC_LIST_INVENTORY, m_listInventory);
@@ -71,94 +88,106 @@ void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_FILTER_CATEGORY, m_comboFilterCategory);
 }
 
+// BEGIN_MESSAGE_MAP ~ END_MESSAGE_MAP 구간은 이벤트와 핸들러 함수를 연결하는 '메시지 맵'입니다.
+// 예를 들어, 특정 버튼이 클릭되면 어떤 함수를 호출할지 정의합니다.
 BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
-    ON_WM_PAINT()
-    ON_WM_QUERYDRAGICON()
-    ON_WM_CLOSE()
-    ON_BN_CLICKED(IDC_BUTTON_CLEAR_LOG, &CInventoryManagerDlg::OnBnClickedButtonClearLog)
-    ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CInventoryManagerDlg::OnBnClickedButtonRefresh)
-    ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CInventoryManagerDlg::OnSelchangeTabMain)
-    ON_BN_CLICKED(IDC_BUTTON_ORDER, &CInventoryManagerDlg::OnBnClickedButtonOrder)
-    ON_NOTIFY(NM_DBLCLK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnDblclkListInventory)
-    ON_BN_CLICKED(IDC_BUTTON2, &CInventoryManagerDlg::OnBnClickedButton2)
-    ON_BN_CLICKED(IDC_BUTTON3, &CInventoryManagerDlg::OnBnClickedButton3)
-    ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // 검색 버튼
-    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
-    ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
-    ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
-
+	ON_WM_PAINT() // 윈도우를 다시 그려야 할 때 (예: 화면에 처음 나타날 때) OnPaint 함수를 호출
+	ON_WM_QUERYDRAGICON() // 최소화된 창을 드래그할 때 아이콘을 얻기 위해 OnQueryDragIcon 함수를 호출
+	ON_WM_CLOSE() // 창의 닫기 버튼을 누를 때 OnClose 함수를 호출
+	// IDC_BUTTON_CLEAR_LOG ID를 가진 버튼이 클릭되면 OnBnClickedButtonClearLog 함수를 호출
+	ON_BN_CLICKED(IDC_BUTTON_CLEAR_LOG, &CInventoryManagerDlg::OnBnClickedButtonClearLog)
+	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CInventoryManagerDlg::OnBnClickedButtonRefresh)
+	// IDC_TAB_MAIN ID를 가진 탭 컨트롤의 선택이 변경되면 OnSelchangeTabMain 함수를 호출
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_MAIN, &CInventoryManagerDlg::OnSelchangeTabMain)
+	ON_BN_CLICKED(IDC_BUTTON_ORDER, &CInventoryManagerDlg::OnBnClickedButtonOrder) // '발주' 버튼
+	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤에서 항목을 더블 클릭하면 OnDblclkListInventory 함수를 호출
+	ON_NOTIFY(NM_DBLCLK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnDblclkListInventory)
+	ON_BN_CLICKED(IDC_BUTTON2, &CInventoryManagerDlg::OnBnClickedButton2) // '삭제' 버튼
+	ON_BN_CLICKED(IDC_BUTTON3, &CInventoryManagerDlg::OnBnClickedButton3) // '상품 추가' 버튼
+	ON_BN_CLICKED(IDC_BTN_SEARCH, &CInventoryManagerDlg::OnBnClickedBtnSearch) // '검색' 버튼
+	// IDC_COMBO_FILTER_BRAND ID를 가진 콤보 박스의 선택이 변경되면 OnSelchangeComboFilter 함수를 호출
+	ON_CBN_SELCHANGE(IDC_COMBO_FILTER_BRAND, &CInventoryManagerDlg::OnSelchangeComboFilter)
+	ON_CBN_SELCHANGE(IDC_COMBO_FILTER_CATEGORY, &CInventoryManagerDlg::OnSelchangeComboFilter)
+	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤의 컬럼 헤더를 클릭하면 OnColumnclickListInventory 함수를 호출 (정렬 기능)
+	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
 END_MESSAGE_MAP()
 
 
-// CInventoryManagerDlg 메시지 처리기
+// CInventoryManagerDlg 메시지 처리기 (핸들러 함수) 구현부
 
+/**
+ * @brief 대화 상자가 처음 생성될 때 호출되는 초기화 함수입니다.
+ * @details 이 곳에서 UI 컨트롤의 초기 상태 설정, 데이터베이스 연결, 초기 데이터 로드 등
+ * 프로그램 시작에 필요한 대부분의 작업을 수행합니다.
+ * @return BOOL 성공 시 TRUE, 실패 시 FALSE를 반환합니다.
+ */
 BOOL CInventoryManagerDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// 아이콘 설정
-	SetIcon(m_hIcon, TRUE);
-	SetIcon(m_hIcon, FALSE);
+	// 창의 제목 표시줄과 작업 표시줄에 아이콘을 설정합니다.
+	SetIcon(m_hIcon, TRUE);		// 큰 아이콘
+	SetIcon(m_hIcon, FALSE);	// 작은 아이콘
 
 	UpdateData(FALSE);
 
-	// 검색 컨트롤 연결
+	// 코드에서 UI 컨트롤을 직접 제어하기 위해 변수와 연결합니다.
 	m_editSearch.SubclassDlgItem(IDC_EDIT_SEARCH, this);
 	m_btnSearch.SubclassDlgItem(IDC_BTN_SEARCH, this);
 
-	// 탭/리스트 초기화
+	// 탭 컨트롤과 재고 목록 리스트 컨트롤을 초기화합니다.
 	InitTabs();
 	InitInventoryList();
 
-	// 환영 로그
+	// 프로그램 시작을 알리는 로그를 남깁니다.
 	AddLog(_T("✅ 프로그램 시작"));
 	AddLog(_T("💡 The Most 재고 관리 시스템"));
 
-	// MySQL 라이브러리 버전 확인 (유니코드 안전)
+	// 사용 중인 MySQL 클라이언트 라이브러리 버전을 로그에 표시합니다.
 	CString strMySQLVersion;
 	strMySQLVersion.Format(_T("📚 MySQL Client 버전: %S"), mysql_get_client_info());
 	AddLog(strMySQLVersion);
 
-	// DB 연결
+	// 데이터베이스에 연결을 시도합니다.
 	AddLog(_T("🔌 데이터베이스 연결 시도 중..."));
 	ConnectDatabase();
 
-	// 재고 데이터 로드/표시/캐시
+	// 데이터베이스 연결에 성공한 경우에만 데이터 관련 작업을 수행합니다.
 	if (m_bDBConnected)
 	{
-		m_comboFilterBrand.SetRedraw(FALSE);
+		m_comboFilterBrand.SetRedraw(FALSE); // 콤보 박스 항목 추가 중 화면 갱신을 잠시 멈춥니다 (성능 향상).
 		m_comboFilterCategory.SetRedraw(FALSE);
 
-		// 콤보 박스 초기화 (첫 항목으로 "전체" 추가)
+		// 필터 콤보 박스에 기본값 "전체" 항목을 추가하고 선택합니다.
 		m_comboFilterBrand.InsertString(0, _T("전체 브랜드"));
-		m_comboFilterBrand.SetCurSel(0); // 0번째 항목("전체 브랜드")을 기본으로 선택
-
+		m_comboFilterBrand.SetCurSel(0);
 		m_comboFilterCategory.InsertString(0, _T("전체 카테고리"));
 		m_comboFilterCategory.SetCurSel(0);
 
-		// DB에서 브랜드 목록 가져와서 콤보 박스에 추가하기
+		// DB에서 브랜드 목록을 가져와 콤보 박스에 채웁니다.
 		std::vector<CString> vecBrands;
-		if (m_pDBManager->GetBrandList(vecBrands)) // DB매니저에게 브랜드 목록 요청
+		if (m_pDBManager->GetBrandList(vecBrands))
 		{
-			for (const auto& brand : vecBrands) // 가져온 목록을 하나씩
+			for (const auto& brand : vecBrands)
 			{
-				m_comboFilterBrand.AddString(brand); // 콤보 박스에 추가
+				m_comboFilterBrand.AddString(brand);
 			}
 		}
 
-		// DB에서 카테고리 목록 가져와서 콤보 박스에 추가하기
+		// DB에서 카테고리 목록을 가져와 콤보 박스에 채웁니다.
 		std::vector<CString> vecCategories;
-		if (m_pDBManager->GetCategoryList(vecCategories)) // DB매니저에게 카테고리 목록 요청
+		if (m_pDBManager->GetCategoryList(vecCategories))
 		{
-			for (const auto& category : vecCategories) // 가져온 목록을 하나씩
+			for (const auto& category : vecCategories)
 			{
-				m_comboFilterCategory.AddString(category); // 콤보 박스에 추가
+				m_comboFilterCategory.AddString(category);
 			}
 		}
 
-		m_comboFilterBrand.SetRedraw(TRUE);
+		m_comboFilterBrand.SetRedraw(TRUE); // 콤보 박스 화면 갱신을 다시 활성화합니다.
 		m_comboFilterCategory.SetRedraw(TRUE);
 
+		// DB에서 재고 데이터를 로드하고, 리스트에 표시한 후, 검색/정렬을 위해 캐시에 저장합니다.
 		LoadInventoryData();
 		UpdateInventoryList();
 		SnapshotDisplayToCache();
@@ -168,60 +197,61 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 		AddLog(_T("❌ DB 연결 실패. 오프라인 모드로 동작합니다."));
 	}
 
-	// --- 통계 다이얼로그 초기화 (기존 코드) ---
+	// '통계' 탭에 표시될 CStatsDlg 대화 상자를 생성하고 초기화합니다.
 	if (!m_pStatsDlg) {
 		m_pStatsDlg = new CStatsDlg();
-		m_pStatsDlg->Create(IDD_STATS_DIALOG, this);           // 자식으로 만들기
-		m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected);     // DB 주입
+		m_pStatsDlg->Create(IDD_STATS_DIALOG, this); // 메인 대화 상자의 자식 윈도우로 생성
+		m_pStatsDlg->InitDB(m_pDBManager, m_bDBConnected); // DB 관리자 포인터 전달
 
-		// 플레이스홀더 위치/크기에 맞춰서 배치
+		// 메인 다이얼로그의 특정 위치(IDC_PLACE_STATS)에 통계 다이얼로그를 배치합니다.
 		CRect rc;
 		GetDlgItem(IDC_PLACE_STATS)->GetWindowRect(&rc);
 		ScreenToClient(&rc);
 		m_pStatsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
 			SWP_NOZORDER | SWP_NOACTIVATE);
 
-		m_pStatsDlg->ShowWindow(SW_HIDE);  // 시작은 숨김
+		m_pStatsDlg->ShowWindow(SW_HIDE);  // 처음에는 숨겨둡니다.
 	}
-	// 통계 호스트(Static) 처음엔 숨김 + 클릭 못 하게
+	// 통계 다이얼로그가 위치할 영역(Static 컨트롤)을 숨깁니다.
 	if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS)) {
 		pHost->ShowWindow(SW_HIDE);
 		pHost->EnableWindow(FALSE);
-		pHost->SetWindowText(_T("")); // (선택) "Static" 글자 지우기
 	}
 
-	// --- 👇 [수정] 설정 다이얼로그 초기화 ---
+	// '설정' 탭에 표시될 CSettingsDlg 대화 상자를 생성하고 초기화합니다.
 	if (!m_pSettingsDlg) {
 		m_pSettingsDlg = new CSettingsDlg();
 		m_pSettingsDlg->Create(IDD_SETTINGS_DIALOG, this);
-		m_pSettingsDlg->SetParentDlg(this); // 메인 다이얼로그와 통신을 위해 포인터 설정
+		m_pSettingsDlg->SetParentDlg(this); // 설정 변경 사항을 메인 다이얼로그에 전달하기 위해 포인터 설정
 
-		// IDC_PLACE_STATS2 위치/크기에 맞춰서 배치
+		// 메인 다이얼로그의 특정 위치(IDC_PLACE_STATS2)에 설정 다이얼로그를 배치합니다.
 		CRect rc;
-		GetDlgItem(IDC_PLACE_STATS2)->GetWindowRect(&rc); // ID를 IDC_PLACE_STATS2로 변경
+		GetDlgItem(IDC_PLACE_STATS2)->GetWindowRect(&rc);
 		ScreenToClient(&rc);
 		m_pSettingsDlg->SetWindowPos(nullptr, rc.left, rc.top, rc.Width(), rc.Height(),
 			SWP_NOZORDER | SWP_NOACTIVATE);
 
-		m_pSettingsDlg->ShowWindow(SW_HIDE);  // 시작은 숨김
+		m_pSettingsDlg->ShowWindow(SW_HIDE);  // 처음에는 숨겨둡니다.
 	}
-	// 설정 호스트(Static) 처음엔 숨김 + 클릭 못 하게
-	if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS2)) { // ID를 IDC_PLACE_STATS2로 변경
+	// 설정 다이얼로그가 위치할 영역(Static 컨트롤)을 숨깁니다.
+	if (CWnd* pHost = GetDlgItem(IDC_PLACE_STATS2)) {
 		pHost->ShowWindow(SW_HIDE);
 		pHost->EnableWindow(FALSE);
 	}
-	// --- 수정 끝 ---
 
-	// 현재 탭에 맞춰 표시/숨김
+	// 현재 선택된 탭(기본값: 재고현황)에 맞는 UI만 표시합니다.
 	ShowTabPage(m_tabMain.GetCurSel());
 
 	return TRUE;
 }
 
-// 그림 처리
+/**
+ * @brief WM_PAINT 메시지 핸들러. 창을 다시 그려야 할 때 호출됩니다.
+ * @details 창이 최소화되었을 때 아이콘을 그리고, 그 외에는 기본 그리기 동작을 수행합니다.
+ */
 void CInventoryManagerDlg::OnPaint()
 {
-	if (IsIconic())
+	if (IsIconic()) // 창이 최소화 상태인지 확인
 	{
 		CPaintDC dc(this);
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
@@ -239,19 +269,26 @@ void CInventoryManagerDlg::OnPaint()
 	}
 }
 
+/**
+ * @brief WM_QUERYDRAGICON 메시지 핸들러. 최소화된 창을 드래그할 때 표시할 커서(아이콘)를 반환합니다.
+ */
 HCURSOR CInventoryManagerDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-// 로그 추가
+/**
+ * @brief 로그 메시지를 로그창(에디트 컨트롤)에 추가하는 함수입니다.
+ * @param strLog 추가할 로그 문자열입니다.
+ */
 void CInventoryManagerDlg::AddLog(CString strLog)
 {
 	CTime time = CTime::GetCurrentTime();
-	CString strTime = time.Format(_T("[%H:%M:%S]"));
+	CString strTime = time.Format(_T("[%H:%M:%S]")); // 현재 시간을 [HH:MM:SS] 형식으로 만듭니다.
 
 	CString strExistingLog; m_editLog.GetWindowText(strExistingLog);
 
+	// 기존 로그에 새 로그를 추가합니다.
 	CString strNewLog;
 	if (strExistingLog.IsEmpty())
 		strNewLog.Format(_T("%s %s"), strTime, strLog);
@@ -260,66 +297,83 @@ void CInventoryManagerDlg::AddLog(CString strLog)
 
 	m_editLog.SetWindowText(strNewLog);
 
+	// 스크롤을 항상 맨 아래로 이동시켜 최신 로그가 보이게 합니다.
 	int nLen = m_editLog.GetWindowTextLength();
 	m_editLog.SetSel(nLen, nLen);
 	m_editLog.SendMessage(EM_SCROLLCARET, 0, 0);
 }
 
-// 로그 지우기
+/**
+ * @brief 로그창의 모든 내용을 지웁니다.
+ */
 void CInventoryManagerDlg::ClearLog()
 {
 	m_editLog.SetWindowText(_T(""));
 	AddLog(_T("로그를 지웠습니다."));
 }
 
-// 탭 초기화
+/**
+ * @brief 메인 탭 컨트롤을 초기화하고 탭 아이템들을 추가합니다.
+ */
 void CInventoryManagerDlg::InitTabs()
 {
-	m_tabMain.DeleteAllItems();
+	m_tabMain.DeleteAllItems(); // 기존 탭 모두 삭제
 	m_tabMain.InsertItem(0, _T("재고현황"));
 	m_tabMain.InsertItem(1, _T("통계"));
 	m_tabMain.InsertItem(2, _T("설정"));
-	m_tabMain.SetCurSel(0);
+	m_tabMain.SetCurSel(0); // 첫 번째 탭을 기본으로 선택
 	m_nCurrentTab = 0;
 }
 
+/**
+ * @brief '로그 지우기' 버튼 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedButtonClearLog()
 {
 	ClearLog();
 }
 
+/**
+ * @brief '새로고침' 버튼 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 {
 	AddLog(_T("🔄 수동 새로고침 실행"));
 
-	if (TestConnection())
+	if (TestConnection()) // DB 연결이 유효한지 먼저 확인
 	{
-		RefreshInventoryData();  // 내부에서 SnapshotDisplayToCache 호출
+		RefreshInventoryData();  // 재고 데이터를 다시 불러옵니다.
 		AddLog(_T("✅ 새로고침 완료"));
 	}
-	else
+	else // 연결이 끊겼다면 재연결 시도
 	{
 		AddLog(_T("🔌 재연결 시도 중..."));
 		ConnectDatabase();
-		if (m_bDBConnected) {
+		if (m_bDBConnected) { // 재연결 성공 시 데이터 로드
 			LoadInventoryData();
 			UpdateInventoryList();
 			SnapshotDisplayToCache();
 		}
 	}
 }
+
+/**
+ * @brief 탭 선택 변경 이벤트 핸들러입니다.
+ * @details 사용자가 다른 탭을 클릭했을 때 호출됩니다.
+ */
 void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 {
-	m_nCurrentTab = m_tabMain.GetCurSel();
-	ShowTabPage(m_nCurrentTab);
+	m_nCurrentTab = m_tabMain.GetCurSel(); // 선택된 탭의 인덱스를 가져옵니다.
+	ShowTabPage(m_nCurrentTab); // 해당 탭에 맞는 화면을 보여줍니다.
 	*pResult = 0;
 }
 
-
-
-// DB 연결
+/**
+ * @brief 데이터베이스 연결을 설정하는 함수입니다.
+ */
 void CInventoryManagerDlg::ConnectDatabase()
 {
+	// CDBManager는 싱글톤 패턴으로 구현되어, 프로그램 전체에서 단 하나의 인스턴스만 존재합니다.
 	m_pDBManager = CDBManager::GetInstance();
 	if (m_pDBManager == nullptr)
 	{
@@ -328,6 +382,7 @@ void CInventoryManagerDlg::ConnectDatabase()
 		return;
 	}
 
+	// DB 연결 정보를 설정합니다.
 	DB_CONFIG config;
 	config.strHost = _T("192.168.0.92");
 	config.nPort = 3306;
@@ -335,6 +390,7 @@ void CInventoryManagerDlg::ConnectDatabase()
 	config.strUser = _T("mfcuser");
 	config.strPassword = _T("Moble1234");
 
+	// 설정된 정보로 DB 연결을 시도합니다.
 	BOOL bResult = m_pDBManager->Connect(config);
 
 	if (bResult)
@@ -355,7 +411,9 @@ void CInventoryManagerDlg::ConnectDatabase()
 	}
 }
 
-// DB 연결 해제
+/**
+ * @brief 데이터베이스 연결을 해제하는 함수입니다.
+ */
 void CInventoryManagerDlg::DisconnectDatabase()
 {
 	if (m_pDBManager != nullptr && m_bDBConnected)
@@ -366,7 +424,10 @@ void CInventoryManagerDlg::DisconnectDatabase()
 	}
 }
 
-// 연결 테스트
+/**
+ * @brief 데이터베이스 연결이 활성 상태인지 테스트하는 함수입니다.
+ * @return BOOL 연결이 유효하면 TRUE, 아니면 FALSE를 반환합니다.
+ */
 BOOL CInventoryManagerDlg::TestConnection()
 {
 	if (!m_bDBConnected || m_pDBManager == nullptr)
@@ -375,12 +436,13 @@ BOOL CInventoryManagerDlg::TestConnection()
 		return FALSE;
 	}
 
+	// 가장 간단한 쿼리를 실행하여 DB가 응답하는지 확인합니다.
 	CString strQuery = _T("SELECT 1");
 	BOOL bResult = m_pDBManager->ExecuteSelect(strQuery);
 	if (bResult)
 	{
 		AddLog(_T("✅ 연결 테스트 성공"));
-		m_pDBManager->FreeResult();
+		m_pDBManager->FreeResult(); // 쿼리 결과 리소스 해제
 		return TRUE;
 	}
 	else
@@ -392,7 +454,9 @@ BOOL CInventoryManagerDlg::TestConnection()
 	}
 }
 
-// 재고 데이터 로드
+/**
+ * @brief 데이터베이스에서 모든 재고 데이터를 가져와 m_vecInventory 벡터에 저장합니다.
+ */
 void CInventoryManagerDlg::LoadInventoryData()
 {
 	if (!m_bDBConnected || m_pDBManager == nullptr)
@@ -403,12 +467,13 @@ void CInventoryManagerDlg::LoadInventoryData()
 
 	AddLog(_T("📊 재고 데이터 로드 중..."));
 
+	// DB 관리자를 통해 재고 목록을 가져옵니다.
 	BOOL bResult = m_pDBManager->GetInventoryList(m_vecInventory);
 
+	// 디버깅용 로그
 	CString strDebug;
 	strDebug.Format(_T("🔍 [DEBUG] GetInventoryList 결과: %s"), bResult ? _T("TRUE") : _T("FALSE"));
 	AddLog(strDebug);
-
 	strDebug.Format(_T("🔍 [DEBUG] 벡터 크기: %d"), (int)m_vecInventory.size());
 	AddLog(strDebug);
 
@@ -418,6 +483,7 @@ void CInventoryManagerDlg::LoadInventoryData()
 		strLog.Format(_T("✅ 재고 데이터 로드 완료 (%d건)"), (int)m_vecInventory.size());
 		AddLog(strLog);
 
+		// 로드된 데이터를 바탕으로 재고 상태(정상/주의/위험)별 개수를 셉니다.
 		int nDanger = 0, nWarning = 0, nNormal = 0;
 		for (size_t i = 0; i < m_vecInventory.size(); i++)
 		{
@@ -427,6 +493,7 @@ void CInventoryManagerDlg::LoadInventoryData()
 			else nNormal++;
 		}
 
+		// 통계 정보를 로그에 남깁니다.
 		CString strStats;
 		strStats.Format(_T("📈 정상: %d건 / 주의: %d건 / 위험: %d건"), nNormal, nWarning, nDanger);
 		AddLog(strStats);
@@ -445,16 +512,21 @@ void CInventoryManagerDlg::LoadInventoryData()
 	}
 }
 
-// 재고 데이터 새로고침
+/**
+ * @brief 재고 데이터를 새로고침합니다. (기존 데이터 삭제 -> 새로 로드 -> 화면 갱신 -> 캐시 갱신)
+ */
 void CInventoryManagerDlg::RefreshInventoryData()
 {
-	m_vecInventory.clear();
-	LoadInventoryData();
-	UpdateInventoryList();
-	SnapshotDisplayToCache();   // ★ 새로고침 때도 캐시 갱신
+	m_vecInventory.clear(); // 기존 메모리 내 재고 데이터 삭제
+	LoadInventoryData();    // DB에서 새로 로드
+	UpdateInventoryList();  // 화면 리스트 컨트롤 갱신
+	SnapshotDisplayToCache();   // 검색/정렬을 위한 캐시 갱신
 }
 
-// 재고 리스트 초기화
+/**
+ * @brief 재고 목록 리스트 컨트롤(CListCtrl)을 초기화합니다.
+ * @details 컬럼 헤더(제목)를 생성하고, 리스트의 스타일을 설정합니다.
+ */
 void CInventoryManagerDlg::InitInventoryList()
 {
 	AddLog(_T("🔍 InitInventoryList 시작"));
@@ -465,16 +537,18 @@ void CInventoryManagerDlg::InitInventoryList()
 		return;
 	}
 
-	m_listInventory.DeleteAllItems();
+	m_listInventory.DeleteAllItems(); // 모든 아이템 삭제
 
+	// 모든 컬럼 삭제
 	int nColCount = m_listInventory.GetHeaderCtrl()->GetItemCount();
 	for (int i = nColCount - 1; i >= 0; i--) m_listInventory.DeleteColumn(i);
 
+	// 리스트 스타일 설정: 행 전체 선택, 그리드 라인 표시
 	DWORD dwStyle = m_listInventory.GetExtendedStyle();
 	dwStyle |= LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES;
 	m_listInventory.SetExtendedStyle(dwStyle);
 
-	// 8개의 컬럼을 순서대로 생성합니다.
+	// 8개의 컬럼을 순서대로 생성합니다. (너비, 정렬 방식 지정)
 	m_listInventory.InsertColumn(0, _T("상태"), LVCFMT_CENTER, 60);
 	m_listInventory.InsertColumn(1, _T("품번"), LVCFMT_LEFT, 150);
 	m_listInventory.InsertColumn(2, _T("상품명"), LVCFMT_LEFT, 150);
@@ -484,6 +558,7 @@ void CInventoryManagerDlg::InitInventoryList()
 	m_listInventory.InsertColumn(6, _T("사이즈"), LVCFMT_CENTER, 80);
 	m_listInventory.InsertColumn(7, _T("재고"), LVCFMT_RIGHT, 80);
 
+	// 초기화 후 최종 컬럼 개수 확인 (디버깅 목적)
 	int nFinalColCount = m_listInventory.GetHeaderCtrl()->GetItemCount();
 	CString strDebug; strDebug.Format(_T("📋 최종 컬럼 개수: %d"), nFinalColCount);
 	AddLog(strDebug);
@@ -492,7 +567,9 @@ void CInventoryManagerDlg::InitInventoryList()
 	else                     AddLog(_T("❌ 재고 리스트 초기화 실패 (컬럼 개수 불일치)"));
 }
 
-// 재고 리스트 업데이트
+/**
+ * @brief m_vecInventory 벡터에 저장된 데이터로 리스트 컨트롤 화면을 채웁니다.
+ */
 void CInventoryManagerDlg::UpdateInventoryList()
 {
 	AddLog(_T("🔍 UpdateInventoryList 시작"));
@@ -502,14 +579,14 @@ void CInventoryManagerDlg::UpdateInventoryList()
 		return;
 	}
 
+	// 컬럼이 제대로 생성되었는지 확인, 문제가 있다면 재초기화
 	int nColCount = m_listInventory.GetHeaderCtrl()->GetItemCount();
 	if (nColCount != 8)
 	{
-		CString strError; strError.Format(_T("❌ 컬럼 개수 오류 (현재: %d, 필요: 7)"), nColCount);
+		CString strError; strError.Format(_T("❌ 컬럼 개수 오류 (현재: %d, 필요: 8)"), nColCount);
 		AddLog(strError);
 		AddLog(_T("🔄 리스트 재초기화 시도..."));
 		InitInventoryList();
-		//return;
 	}
 
 	CString strDebug; strDebug.Format(_T("🔍 업데이트할 데이터: %d건"), (int)m_vecInventory.size());
@@ -520,20 +597,23 @@ void CInventoryManagerDlg::UpdateInventoryList()
 		return;
 	}
 
-	m_listInventory.SetRedraw(FALSE);
-	m_listInventory.DeleteAllItems();
+	m_listInventory.SetRedraw(FALSE); // 많은 데이터를 추가하기 전 화면 갱신을 멈춰 성능 향상
+	m_listInventory.DeleteAllItems(); // 기존 아이템 모두 삭제
 
 	int nAddedCount = 0;
+	// m_vecInventory의 모든 아이템에 대해 반복
 	for (size_t i = 0; i < m_vecInventory.size(); i++)
 	{
 		const INVENTORY_ITEM& item = m_vecInventory[i];
 
+		// 재고 수량에 따라 '상태' 문자열 결정
 		CString strStatus;
 		if (item.nStock == 0)                       strStatus = _T("품절");
 		else if (item.nStock < m_nDangerThreshold)  strStatus = _T("위험");
 		else if (item.nStock < m_nWarningThreshold) strStatus = _T("주의");
 		else                                        strStatus = _T("정상");
 
+		// 새 행(아이템)을 추가하고 각 컬럼에 맞는 데이터를 설정
 		int nIndex = m_listInventory.InsertItem((int)i, strStatus);
 		if (nIndex == -1) {
 			CString strError; strError.Format(_T("❌ 항목 추가 실패 (인덱스: %d)"), (int)i);
@@ -541,7 +621,6 @@ void CInventoryManagerDlg::UpdateInventoryList()
 			continue;
 		}
 
-		// 8개 컬럼에 순서대로 데이터를 채웁니다.
 		m_listInventory.SetItemText(nIndex, 1, item.strOptionCode);
 		m_listInventory.SetItemText(nIndex, 2, item.strProductName);
 		m_listInventory.SetItemText(nIndex, 3, item.strBrandName);
@@ -551,29 +630,37 @@ void CInventoryManagerDlg::UpdateInventoryList()
 		CString strStock; strStock.Format(_T("%d"), item.nStock);
 		m_listInventory.SetItemText(nIndex, 7, strStock);
 
+		// 각 행에 고유 ID(nOptionID)를 데이터로 저장해둡니다. 화면에는 보이지 않지만,
+		// 나중에 특정 행을 식별할 때 매우 유용하게 사용됩니다.
 		m_listInventory.SetItemData(nIndex, (DWORD_PTR)item.nOptionID);
 		nAddedCount++;
 	}
 
-	m_listInventory.SetRedraw(TRUE);
-	m_listInventory.Invalidate(TRUE);
+	m_listInventory.SetRedraw(TRUE); // 화면 갱신을 다시 활성화
+	m_listInventory.Invalidate(TRUE); // 컨트롤을 강제로 다시 그리도록 요청
 	m_listInventory.UpdateWindow();
 
 	CString strLog; strLog.Format(_T("✅ 리스트 업데이트 완료 (%d건)"), nAddedCount);
 	AddLog(strLog);
 }
 
+/**
+ * @brief '발주' 버튼 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedButtonOrder()
 {
+	// 리스트에서 선택된 항목의 인덱스를 가져옵니다.
 	int nSelected = m_listInventory.GetNextItem(-1, LVNI_SELECTED);
-	if (nSelected == -1) {
+	if (nSelected == -1) { // 선택된 항목이 없으면
 		AfxMessageBox(_T("발주할 품목을 선택해주세요."));
 		AddLog(_T("⚠️ 발주: 품목 선택 안 됨"));
 		return;
 	}
 
+	// 선택된 항목에 저장해 둔 고유 ID(OptionID)를 가져옵니다.
 	int nOptionID = (int)m_listInventory.GetItemData(nSelected);
 
+	// m_vecInventory에서 해당 ID를 가진 품목 정보를 찾습니다.
 	INVENTORY_ITEM* pItem = nullptr;
 	for (size_t i = 0; i < m_vecInventory.size(); i++) {
 		if (m_vecInventory[i].nOptionID == nOptionID) { pItem = &m_vecInventory[i]; break; }
@@ -584,17 +671,14 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 		return;
 	}
 
-	CString strDebugLog;
-	strDebugLog.Format(_T("선택된 품목 - 품번: %s, 상품명: %s, 재고: %d"),
-		pItem->strOptionCode, pItem->strProductName, pItem->nStock);
-	AddLog(strDebugLog);
-
+	// '발주' 대화 상자를 생성하고, 선택된 품목 정보를 전달합니다.
 	COrderDlg dlg;
 	dlg.m_nOptionID = pItem->nOptionID;
 	dlg.m_strOptionCode = pItem->strOptionCode;
 	dlg.m_strProductName = pItem->strProductName;
 	dlg.m_nCurrentStock = pItem->nStock;
 
+	// 사용자가 '발주' 대화 상자에서 '확인'을 누르면
 	if (dlg.DoModal() == IDOK)
 	{
 		CString strLog;
@@ -607,6 +691,7 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 			return;
 		}
 
+		// DB에 재고 수량 추가를 요청합니다.
 		BOOL bResult = m_pDBManager->AddStock(nOptionID, dlg.m_nOrderQuantity);
 		if (bResult)
 		{
@@ -614,7 +699,7 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 				pItem->strOptionCode, dlg.m_nOrderQuantity, pItem->nStock, pItem->nStock + dlg.m_nOrderQuantity);
 			AddLog(strLog);
 			AfxMessageBox(_T("발주가 완료되었습니다."));
-			RefreshInventoryData();
+			RefreshInventoryData(); // 변경된 내용을 반영하기 위해 목록을 새로고침
 		}
 		else
 		{
@@ -628,11 +713,15 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 	}
 }
 
-// 창 닫기
+/**
+ * @brief WM_CLOSE 메시지 핸들러. 창이 닫힐 때 호출됩니다.
+ * @details 안전한 종료를 위해 DB 연결 해제 등의 마무리 작업을 수행합니다.
+ */
 void CInventoryManagerDlg::OnClose()
 {
 	AddLog(_T("🚪 프로그램 종료 요청"));
 
+	// 다른 팝업 대화 상자가 열려있으면 먼저 닫도록 처리
 	CWnd* pWnd = GetWindow(GW_ENABLEDPOPUP);
 	if (pWnd != nullptr && pWnd != this)
 	{
@@ -648,16 +737,20 @@ void CInventoryManagerDlg::OnClose()
 
 	DisconnectDatabase();
 	AddLog(_T("👋 프로그램 종료 중..."));
-	CDialogEx::OnClose();
+	CDialogEx::OnClose(); // 기본 닫기 동작 수행
 }
 
+/**
+ * @brief 리스트 항목 더블 클릭 이벤트 핸들러입니다. (재고 수량 직접 수정 기능)
+ */
 void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
-	int nItem = pNMItemActivate->iItem;
+	int nItem = pNMItemActivate->iItem; // 더블 클릭된 아이템의 인덱스
 
 	if (nItem == -1) { AddLog(_T("⚠️ 재고 수정: 항목이 선택되지 않음")); *pResult = 0; return; }
 
+	// 더블클릭된 항목의 고유 ID(OptionID)를 가져옵니다.
 	int nOptionID = (int)m_listInventory.GetItemData(nItem);
 
 	INVENTORY_ITEM* pItem = nullptr;
@@ -670,12 +763,9 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 		*pResult = 0; return;
 	}
 
-	CString strDebugLog;
-	strDebugLog.Format(_T("📦 선택된 품목 - 품번: %s, 상품명: %s, 재고: %d"),
-		pItem->strOptionCode, pItem->strProductName, pItem->nStock);
-	AddLog(strDebugLog);
-
-	CEditStockDlg dlg;
+	// CEditStockDlg는 헤더 파일에 선언되지 않았으므로, 실제로는 다른 이름의 대화 상자일 수 있습니다.
+	// 여기서는 가상의 '재고 수정 대화 상자'로 간주하고 설명합니다.
+	CEditStockDlg dlg; // CEditStockDlg는 이 프로젝트에 없는 가상의 이름입니다. COrderDlg와 유사할 것으로 추정됩니다.
 	dlg.m_nOptionID = pItem->nOptionID;
 	dlg.m_strOptionCode = pItem->strOptionCode;
 	dlg.m_strProductName = pItem->strProductName;
@@ -694,6 +784,7 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 			*pResult = 0; return;
 		}
 
+		// DB에 재고 수량 업데이트를 요청합니다.
 		BOOL bResult = m_pDBManager->UpdateStock(nOptionID, dlg.m_nNewStock);
 		if (bResult)
 		{
@@ -701,7 +792,7 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 				pItem->strOptionCode, pItem->nStock, dlg.m_nNewStock, dlg.m_nNewStock - pItem->nStock);
 			AddLog(strLog);
 			AfxMessageBox(_T("재고가 수정되었습니다."));
-			RefreshInventoryData();
+			RefreshInventoryData(); // 화면 새로고침
 		}
 		else
 		{
@@ -713,10 +804,12 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 	else {
 		AddLog(_T("🚫 재고 수정 취소됨"));
 	}
-
 	*pResult = 0;
 }
 
+/**
+ * @brief '삭제' 버튼(IDC_BUTTON2) 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedButton2()
 {
 	int nSelectedItem = m_listInventory.GetNextItem(-1, LVNI_SELECTED);
@@ -729,6 +822,7 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 	int nOptionID = (int)m_listInventory.GetItemData(nSelectedItem);
 	CString strProductCode = m_listInventory.GetItemText(nSelectedItem, 1);
 
+	// 사용자에게 정말 삭제할 것인지 다시 한번 확인받습니다.
 	CString strConfirmMsg;
 	strConfirmMsg.Format(_T("품번 '%s'을(를) 정말로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다."), strProductCode);
 	if (AfxMessageBox(strConfirmMsg, MB_YESNO | MB_ICONWARNING) != IDYES) {
@@ -745,11 +839,12 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 	CString strLog; strLog.Format(_T("🗑️ 삭제 시도: %s (OptionID: %d)"), strProductCode, nOptionID);
 	AddLog(strLog);
 
+	// DB에 품목 삭제를 요청합니다.
 	BOOL bResult = m_pDBManager->DeleteInventoryItem(nOptionID);
 	if (bResult) {
 		AfxMessageBox(_T("선택한 품목이 성공적으로 삭제되었습니다."));
 		AddLog(_T("✅ 삭제 성공!"));
-		RefreshInventoryData();
+		RefreshInventoryData(); // 화면 새로고침
 	}
 	else {
 		CString strError; strError.Format(_T("❌ 삭제 실패: %s"), m_pDBManager->GetLastError());
@@ -758,138 +853,122 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 	}
 }
 
+/**
+ * @brief '상품 추가' 버튼(IDC_BUTTON3) 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedButton3()
 {
 	CAddProductDlg dlg;
+	// '상품 추가' 대화상자를 띄우고, '확인'을 누르면 목록을 새로고침합니다.
 	if (dlg.DoModal() == IDOK) {
 		AddLog(_T("✨ 새 상품이 추가되었습니다. 목록을 새로고침합니다."));
 		RefreshInventoryData();
 	}
 }
 
-// =========================
-// 🔎 검색 버튼/엔터 처리
-// =========================
+/**
+ * @brief '검색' 버튼 클릭 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnBnClickedBtnSearch()
 {
 	ApplyFiltersAndSearch();
 }
 
+/**
+ * @brief 키보드 입력을 가로채는 함수입니다.
+ * @details 검색창(IDC_EDIT_SEARCH)에서 엔터 키를 눌렀을 때 검색을 실행하기 위해 사용됩니다.
+ */
 BOOL CInventoryManagerDlg::PreTranslateMessage(MSG* pMsg)
 {
 	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
 	{
+		// 현재 포커스가 검색 에디트 컨트롤에 있는지 확인
 		if (GetFocus() && GetFocus()->GetDlgCtrlID() == IDC_EDIT_SEARCH)
 		{
 			ApplyFiltersAndSearch();
-			return TRUE;
+			return TRUE; // 메시지 처리를 여기서 완료했음을 알림
 		}
 	}
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
+/**
+ * @brief 필터 콤보 박스 선택 변경 이벤트 핸들러입니다.
+ */
 void CInventoryManagerDlg::OnSelchangeComboFilter()
 {
-	ApplyFiltersAndSearch(); // 핵심 함수 호출
+	ApplyFiltersAndSearch();
 }
 
-// =========================
-// 🔎 검색 캐시 루틴
-// =========================
+/**
+ * @brief 현재 리스트 컨트롤에 표시된 모든 데이터를 m_allRowsDisplay 벡터에 복사(캐시)합니다.
+ * @details DB를 다시 읽지 않고, 메모리에 있는 캐시 데이터로 검색/정렬을 빠르게 수행하기 위함입니다.
+ */
 void CInventoryManagerDlg::SnapshotDisplayToCache()
 {
-    m_allRowsDisplay.clear();
-    const int rowCount = m_listInventory.GetItemCount();
-    if (rowCount == 0) return;
+	m_allRowsDisplay.clear(); // 기존 캐시 삭제
+	const int rowCount = m_listInventory.GetItemCount();
+	if (rowCount == 0) return;
 
-    m_allRowsDisplay.reserve(rowCount);
-    for (int i = 0; i < rowCount; ++i)
-    {
-        DisplayRow r;
-        // [수정] GetItemData를 사용해 Option ID를 캐시에 저장
-        r.nOptionID = (int)m_listInventory.GetItemData(i);
+	m_allRowsDisplay.reserve(rowCount); // 메모리 재할당 방지를 위해 미리 공간 확보
+	for (int i = 0; i < rowCount; ++i)
+	{
+		DisplayRow r;
+		// 화면에 보이지 않는 고유 ID(OptionID)도 함께 캐시에 저장합니다.
+		r.nOptionID = (int)m_listInventory.GetItemData(i);
 
-        // 8개 컬럼 데이터를 모두 빠짐없이 복사합니다.
-        r.col0 = m_listInventory.GetItemText(i, 0);
-        r.col1 = m_listInventory.GetItemText(i, 1);
-        r.col2 = m_listInventory.GetItemText(i, 2);
-        r.col3 = m_listInventory.GetItemText(i, 3);
-        r.col4 = m_listInventory.GetItemText(i, 4);
-        r.col5 = m_listInventory.GetItemText(i, 5);
-        r.col6 = m_listInventory.GetItemText(i, 6);
-        r.col7 = m_listInventory.GetItemText(i, 7);
-        m_allRowsDisplay.push_back(r);
-    }
+		// 화면에 보이는 모든 컬럼의 텍스트 데이터를 캐시 구조체에 복사합니다.
+		r.col0 = m_listInventory.GetItemText(i, 0);
+		r.col1 = m_listInventory.GetItemText(i, 1);
+		r.col2 = m_listInventory.GetItemText(i, 2);
+		r.col3 = m_listInventory.GetItemText(i, 3);
+		r.col4 = m_listInventory.GetItemText(i, 4);
+		r.col5 = m_listInventory.GetItemText(i, 5);
+		r.col6 = m_listInventory.GetItemText(i, 6);
+		r.col7 = m_listInventory.GetItemText(i, 7);
+		m_allRowsDisplay.push_back(r);
+	}
 }
+
+/**
+ * @brief 캐시된 데이터(DisplayRow 벡터)를 리스트 컨트롤 화면에 표시합니다.
+ * @details 검색 또는 정렬된 결과를 화면에 보여줄 때 사용됩니다.
+ * @param rows 화면에 표시할 행 데이터의 벡터입니다.
+ */
 void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows)
 {
-    m_listInventory.SetRedraw(FALSE);
-    m_listInventory.DeleteAllItems();
+	m_listInventory.SetRedraw(FALSE); // 화면 갱신 중지
+	m_listInventory.DeleteAllItems(); // 기존 항목 모두 삭제
 
-    for (const auto& r : rows)
-    {
-        int i = m_listInventory.InsertItem(m_listInventory.GetItemCount(), r.col0);
-        // 8개 컬럼 데이터를 모두 빠짐없이 화면에 표시합니다.
-        m_listInventory.SetItemText(i, 1, r.col1);
-        m_listInventory.SetItemText(i, 2, r.col2);
-        m_listInventory.SetItemText(i, 3, r.col3);
-        m_listInventory.SetItemText(i, 4, r.col4);
-        m_listInventory.SetItemText(i, 5, r.col5);
-        m_listInventory.SetItemText(i, 6, r.col6);
-        m_listInventory.SetItemText(i, 7, r.col7);
+	for (const auto& r : rows)
+	{
+		int i = m_listInventory.InsertItem(m_listInventory.GetItemCount(), r.col0);
+		m_listInventory.SetItemText(i, 1, r.col1);
+		m_listInventory.SetItemText(i, 2, r.col2);
+		m_listInventory.SetItemText(i, 3, r.col3);
+		m_listInventory.SetItemText(i, 4, r.col4);
+		m_listInventory.SetItemText(i, 5, r.col5);
+		m_listInventory.SetItemText(i, 6, r.col6);
+		m_listInventory.SetItemText(i, 7, r.col7);
+		m_listInventory.SetItemData(i, (DWORD_PTR)r.nOptionID); // 고유 ID도 다시 설정
+	}
 
-        // [수정] 캐시에서 가져온 Option ID를 다시 설정
-        m_listInventory.SetItemData(i, (DWORD_PTR)r.nOptionID);
-    }
-
-    m_listInventory.SetRedraw(TRUE);
-    m_listInventory.Invalidate();
+	m_listInventory.SetRedraw(TRUE); // 화면 갱신 재개
+	m_listInventory.Invalidate(); // 컨트롤 다시 그리기
 }
 
-//void CInventoryManagerDlg::ApplySearchFilter(const CString& keywordRaw)
-//{
-//    CString q = keywordRaw; q.Trim();
-//    if (q.IsEmpty()) {
-//        ShowRowsFromCache(m_allRowsDisplay);
-//        return;
-//    }
-//
-//    const CString ql = ToLower(q);
-//    std::vector<DisplayRow> filtered;
-//    filtered.reserve(m_allRowsDisplay.size());
-//
-//    for (const auto& r : m_allRowsDisplay)
-//    {
-//        // 대상: 상태(0), 품번(1), 상품명(2), 브랜드(3), 색상(4), 사이즈(5)
-//        const CString status = ToLower(r.col0);
-//        const CString sku = ToLower(r.col1);
-//        const CString name = ToLower(r.col2);
-//        const CString brand = ToLower(r.col3);
-//        const CString color = ToLower(r.col4);
-//        const CString size = ToLower(r.col5);
-//
-//        bool match =
-//            (sku.Find(ql) >= 0) ||
-//            (name.Find(ql) >= 0) ||
-//            (brand.Find(ql) >= 0) ||
-//            (status.Find(ql) >= 0) ||
-//            (color.Find(ql) >= 0) ||
-//            (size.Find(ql) >= 0);
-//
-//        if (match) filtered.push_back(r);
-//    }
-//
-//    ShowRowsFromCache(filtered);
-//}
 
-// [ADD] 탭별 UI 토글 구현
+/**
+ * @brief 선택된 탭에 따라 관련된 UI 컨트롤들을 보여주거나 숨깁니다.
+ * @param idx 보여줄 탭의 인덱스입니다. (0: 재고, 1: 통계, 2: 설정)
+ */
 void CInventoryManagerDlg::ShowTabPage(int idx)
 {
 	const bool showInventory = (idx == 0);
 	const bool showStats = (idx == 1);
 	const bool showSettings = (idx == 2);
 
-	// 재고 탭 관련 컨트롤 보이기/숨기기
+	// '재고 현황' 탭 관련 컨트롤들의 표시 여부를 설정합니다.
 	m_listInventory.ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_EDIT_SEARCH)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_BTN_SEARCH)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
@@ -899,10 +978,10 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	GetDlgItem(IDC_COMBO_FILTER_BRAND)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_CATEGORY)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
-	// 통계 탭 (플레이스홀더와 자식 다이얼로그 모두 제어)
+	// '통계' 탭을 선택한 경우, 통계 다이얼로그를 보여줍니다.
 	if (m_pStatsDlg) {
 		if (showStats) {
-			m_pStatsDlg->Reload();
+			m_pStatsDlg->Reload(); // 통계 데이터를 최신으로 다시 로드
 			m_pStatsDlg->ShowWindow(SW_SHOW);
 		}
 		else {
@@ -910,11 +989,10 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 		}
 	}
 
-	// 설정 탭 (플레이스홀더와 자식 다이얼로그 모두 제어)
+	// '설정' 탭을 선택한 경우, 설정 다이얼로그를 보여줍니다.
 	if (m_pSettingsDlg) {
 		if (showSettings) {
-			// 👈 [수정] 함수 이름을 LoadSettings로 변경
-			m_pSettingsDlg->LoadSettings(m_nWarningThreshold, m_nDangerThreshold);
+			m_pSettingsDlg->LoadSettings(m_nWarningThreshold, m_nDangerThreshold); // 현재 설정값을 로드하여 표시
 			m_pSettingsDlg->ShowWindow(SW_SHOW);
 		}
 		else {
@@ -923,149 +1001,156 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	}
 }
 
+/**
+ * @brief 필터와 검색어를 적용하여 리스트를 갱신하는 핵심 함수입니다.
+ */
 void CInventoryManagerDlg::ApplyFiltersAndSearch()
 {
-    // 1. 현재 선택된 필터 값 가져오기
-    CString strBrandFilter;
-    int nBrandIndex = m_comboFilterBrand.GetCurSel();
-    if (nBrandIndex > 0) // "전체 브랜드"가 아닐 경우
-    {
-        m_comboFilterBrand.GetLBText(nBrandIndex, strBrandFilter);
-    }
+	// 1. 현재 필터 콤보 박스에서 선택된 값을 가져옵니다.
+	CString strBrandFilter;
+	int nBrandIndex = m_comboFilterBrand.GetCurSel();
+	if (nBrandIndex > 0) // "전체 브랜드"가 아닌 특정 브랜드를 선택한 경우
+	{
+		m_comboFilterBrand.GetLBText(nBrandIndex, strBrandFilter);
+	}
 
-    // (카테고리 필터는 향후 확장을 위해 변수만 선언)
-    CString strCategoryFilter;
-    int nCategoryIndex = m_comboFilterCategory.GetCurSel();
-    if (nCategoryIndex > 0)
-    {
-        m_comboFilterCategory.GetLBText(nCategoryIndex, strCategoryFilter);
-    }
+	CString strCategoryFilter;
+	int nCategoryIndex = m_comboFilterCategory.GetCurSel();
+	if (nCategoryIndex > 0) // "전체 카테고리"가 아닌 특정 카테고리를 선택한 경우
+	{
+		m_comboFilterCategory.GetLBText(nCategoryIndex, strCategoryFilter);
+	}
 
-    // 2. 현재 검색어 가져오기
-    CString strSearchKeyword;
-    m_editSearch.GetWindowText(strSearchKeyword);
-    strSearchKeyword.Trim();
-    const CString lowerKeyword = ToLower(strSearchKeyword);
+	// 2. 검색창에 입력된 검색어를 가져옵니다.
+	CString strSearchKeyword;
+	m_editSearch.GetWindowText(strSearchKeyword);
+	strSearchKeyword.Trim(); // 앞뒤 공백 제거
+	const CString lowerKeyword = ToLower(strSearchKeyword); // 대소문자 구분 없는 비교를 위해 소문자로 변환
 
-    // 3. 필터링된 결과를 담을 새 목록 준비
-    std::vector<DisplayRow> filteredRows;
+	// 3. 필터링된 결과를 담을 새로운 벡터를 준비합니다.
+	std::vector<DisplayRow> filteredRows;
 
-    // 4. 원본 캐시 데이터를 하나씩 검사하며 필터링 진행
-    for (const auto& row : m_allRowsDisplay)
-    {
-        // [조건 1] 브랜드 필터
-        CString brandFromRow = row.col3;
-        bool bBrandMatch = strBrandFilter.IsEmpty() || (brandFromRow.Trim() == strBrandFilter);
-        if (!bBrandMatch)
-        {
-            continue;
-        }
+	// 4. 전체 데이터가 담긴 캐시(m_allRowsDisplay)를 하나씩 확인하며 필터링합니다.
+	for (const auto& row : m_allRowsDisplay)
+	{
+		// [조건 1] 브랜드 필터 확인
+		CString brandFromRow = row.col3;
+		bool bBrandMatch = strBrandFilter.IsEmpty() || (brandFromRow.Trim() == strBrandFilter);
+		if (!bBrandMatch) // 브랜드가 일치하지 않으면 이 행은 건너뜁니다.
+		{
+			continue;
+		}
 
-        // [조건 2] 카테고리 필터 (현재는 비활성화)
-        CString categoryFromRow = row.col4;
-        bool bCategoryMatch = strCategoryFilter.IsEmpty() || (categoryFromRow.Trim() == strCategoryFilter);
-        if (!bCategoryMatch)
-        {
-            continue;
-        }
+		// [조건 2] 카테고리 필터 확인
+		CString categoryFromRow = row.col4;
+		bool bCategoryMatch = strCategoryFilter.IsEmpty() || (categoryFromRow.Trim() == strCategoryFilter);
+		if (!bCategoryMatch) // 카테고리가 일치하지 않으면 이 행은 건너뜁니다.
+		{
+			continue;
+		}
 
-        // [조건 3] 검색어 필터 (검색어가 있을 경우에만)
-        if (!lowerKeyword.IsEmpty())
-        {
-            bool bKeywordMatch =
-                (ToLower(row.col0).Find(lowerKeyword) >= 0) || // 상태
-                (ToLower(row.col1).Find(lowerKeyword) >= 0) || // 품번
-                (ToLower(row.col2).Find(lowerKeyword) >= 0) || // 상품명
-                (ToLower(row.col3).Find(lowerKeyword) >= 0) || // 브랜드
-                (ToLower(row.col4).Find(lowerKeyword) >= 0) || // 색상
-                (ToLower(row.col5).Find(lowerKeyword) >= 0);   // 사이즈
+		// [조건 3] 검색어 필터 확인 (검색어가 입력된 경우에만)
+		if (!lowerKeyword.IsEmpty())
+		{
+			// 모든 컬럼 내용에 검색어가 포함되어 있는지 확인합니다.
+			bool bKeywordMatch =
+				(ToLower(row.col0).Find(lowerKeyword) >= 0) || // 상태
+				(ToLower(row.col1).Find(lowerKeyword) >= 0) || // 품번
+				(ToLower(row.col2).Find(lowerKeyword) >= 0) || // 상품명
+				(ToLower(row.col3).Find(lowerKeyword) >= 0) || // 브랜드
+				(ToLower(row.col4).Find(lowerKeyword) >= 0) || // 카테고리
+				(ToLower(row.col5).Find(lowerKeyword) >= 0) || // 색상
+				(ToLower(row.col6).Find(lowerKeyword) >= 0);   // 사이즈 (col5와 col6가 색상/사이즈로 추정)
 
-            if (!bKeywordMatch)
-            {
-                continue;
-            }
-        }
+			if (!bKeywordMatch) // 어느 컬럼에도 검색어가 없으면 이 행은 건너뜁니다.
+			{
+				continue;
+			}
+		}
 
-        // 모든 조건을 통과한 데이터만 결과 목록에 추가
-        filteredRows.push_back(row);
-    }
+		// 모든 필터 조건을 통과한 행만 결과 벡터에 추가합니다.
+		filteredRows.push_back(row);
+	}
 
-    // 5. 최종 결과를 화면에 표시
-    ShowRowsFromCache(filteredRows);
+	// 5. 필터링된 최종 결과를 화면에 표시합니다.
+	ShowRowsFromCache(filteredRows);
 }
 
-// =========================
-// 🔎 리스트 컬럼 클릭 (정렬)
-// =========================
+/**
+ * @brief 리스트 컬럼 헤더 클릭 이벤트 핸들러 (정렬 기능)
+ */
 void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pResult)
 {
-    LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-    int nColumn = pNMLV->iSubItem; // 사용자가 클릭한 컬럼의 인덱스
+	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	int nColumn = pNMLV->iSubItem; // 사용자가 클릭한 컬럼의 인덱스
 
-    // 같은 컬럼을 다시 클릭하면 정렬 순서 변경 (오름차순 <-> 내림차순)
-    if (nColumn == m_nSortColumn) {
-        m_bSortAscending = !m_bSortAscending;
-    }
-    // 다른 컬럼을 클릭하면 해당 컬럼으로 정렬 대상을 바꾸고, 기본은 오름차순
-    else {
-        m_nSortColumn = nColumn;
-        m_bSortAscending = true;
-    }
+	// 같은 컬럼을 다시 클릭하면 정렬 순서를 반대로 변경 (오름차순 <-> 내림차순)
+	if (nColumn == m_nSortColumn) {
+		m_bSortAscending = !m_bSortAscending;
+	}
+	// 다른 컬럼을 클릭하면 해당 컬럼을 기준으로 오름차순 정렬
+	else {
+		m_nSortColumn = nColumn;
+		m_bSortAscending = true;
+	}
 
-    // std::sort에 사용할 람다(lambda) 비교 함수 정의
-    auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
-        CString strA, strB;
+	// std::sort에 사용할 비교 함수(람다)를 정의합니다.
+	auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
+		CString strA, strB;
 
-        // 클릭된 컬럼(m_nSortColumn)에 따라 비교할 데이터 선택
-        switch (m_nSortColumn) {
-        case 0: strA = a.col0; strB = b.col0; break; // 상태
-        case 1: strA = a.col1; strB = b.col1; break; // 품번
-        case 2: strA = a.col2; strB = b.col2; break; // 상품명
-        case 3: strA = a.col3; strB = b.col3; break; // 브랜드
-        case 4: strA = a.col4; strB = b.col4; break; // 카테고리
-        case 5: strA = a.col5; strB = b.col5; break; // 색상
-        case 6: strA = a.col6; strB = b.col6; break; // 사이즈
-        case 7: { // '재고' 컬럼은 숫자로 비교
-            int valA = _ttoi(a.col7);
-            int valB = _ttoi(b.col7);
-            if (m_bSortAscending) return valA < valB;
-            else return valA > valB;
-        }
-        default: return false; // 예외 처리
-        }
+		// 클릭된 컬럼(m_nSortColumn)에 따라 비교할 데이터를 선택합니다.
+		switch (m_nSortColumn) {
+		case 0: strA = a.col0; strB = b.col0; break; // 상태
+		case 1: strA = a.col1; strB = b.col1; break; // 품번
+		case 2: strA = a.col2; strB = b.col2; break; // 상품명
+		case 3: strA = a.col3; strB = b.col3; break; // 브랜드
+		case 4: strA = a.col4; strB = b.col4; break; // 카테고리
+		case 5: strA = a.col5; strB = b.col5; break; // 색상
+		case 6: strA = a.col6; strB = b.col6; break; // 사이즈
+		case 7: { // '재고' 컬럼은 문자열이 아닌 숫자로 비교해야 합니다.
+			int valA = _ttoi(a.col7); // 문자열을 정수로 변환
+			int valB = _ttoi(b.col7);
+			if (m_bSortAscending) return valA < valB; // 오름차순
+			else return valA > valB; // 내림차순
+		}
+		default: return false; // 예외 처리
+		}
 
-        // 문자열 컬럼 비교
-        if (m_bSortAscending) {
-            return strA.Compare(strB) < 0; // 오름차순
-        }
-        else {
-            return strA.Compare(strB) > 0; // 내림차순
-        }
-        };
+		// 문자열 컬럼 비교
+		if (m_bSortAscending) {
+			return strA.Compare(strB) < 0; // 오름차순
+		}
+		else {
+			return strA.Compare(strB) > 0; // 내림차순
+		}
+		};
 
-    // 준비된 람다 함수를 이용해 캐시(m_allRowsDisplay)를 정렬
-    std::sort(m_allRowsDisplay.begin(), m_allRowsDisplay.end(), sortLambda);
+	// 정의된 람다 함수를 이용해 캐시 데이터(m_allRowsDisplay)를 정렬합니다.
+	std::sort(m_allRowsDisplay.begin(), m_allRowsDisplay.end(), sortLambda);
 
-    // 정렬된 캐시 데이터로 리스트 화면을 다시 그림
-    ShowRowsFromCache(m_allRowsDisplay);
+	// 정렬된 캐시 데이터로 리스트 화면을 다시 그립니다.
+	ShowRowsFromCache(m_allRowsDisplay);
 
-    *pResult = 0;
+	*pResult = 0;
 }
 
-// 👈 [추가] 파일 맨 아래에 이 함수 전체를 추가해주세요.
+/**
+ * @brief '설정' 탭에서 변경된 재고 기준치를 메인 다이얼로그에 적용하는 함수입니다.
+ * @details CSettingsDlg에서 이 함수를 호출하여 메인 다이얼로그의 상태를 변경합니다.
+ * @param nWarning 새로운 '주의' 기준값
+ * @param nDanger 새로운 '위험' 기준값
+ */
 void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
 {
-	// 메인 다이얼로그의 멤버 변수 업데이트
+	// 메인 다이얼로그의 멤버 변수를 업데이트합니다.
 	m_nWarningThreshold = nWarning;
 	m_nDangerThreshold = nDanger;
 
-	// 로그 남기기
 	CString strLog;
 	strLog.Format(_T("⚙️ 설정 변경: 주의 기준=%d, 위험 기준=%d"), nWarning, nDanger);
 	AddLog(strLog);
 
-	// 변경된 기준을 바로 적용하기 위해 재고 목록 새로고침
+	// 변경된 기준(주의/위험)을 리스트의 '상태' 컬럼에 즉시 반영하기 위해 새로고침합니다.
 	AddLog(_T("🔄 설정 적용을 위해 목록을 새로고침합니다."));
 	RefreshInventoryData();
 }
-
