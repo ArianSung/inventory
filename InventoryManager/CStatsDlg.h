@@ -29,6 +29,8 @@ protected:
     CListCtrl m_listOrders;
     CListCtrl m_listBrand;
     CListCtrl m_listDaily;          // [ADD] 날짜별 총매출 리스트
+    CDateTimeCtrl m_dtpStart;       // 시작일 DateTimePicker
+    CDateTimeCtrl m_dtpEnd;         // 종료일 DateTimePicker
 
     // ===== 헬퍼 =====
     void AutoSizeColumns(CListCtrl& list);
@@ -41,7 +43,13 @@ protected:
     void InitLists();
     void LoadStats();
 
+    void LoadStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
+    void LoadBrandStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
+    void LoadDailyStatsByPeriod(const CString& strStartDate, const CString& strEndDate);
+
     afx_msg void OnClose();
     virtual void OnCancel();
     virtual BOOL DestroyWindow();
+
+    afx_msg void OnBnClickedButtonSearchPeriod();
 };
