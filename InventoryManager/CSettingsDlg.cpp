@@ -1,18 +1,29 @@
-﻿// CSettingsDlg.cpp: 구현 파일
+﻿// CSettingsDlg.cpp : 구현 파일
+//
 
-// 변경 후 (전체 코드)
 #include "pch.h"
 #include "InventoryManager.h"
-#include "CSettingsDlg.h"
-#include "InventoryManagerDlg.h" // 부모 다이얼로그의 기능을 사용하기 위해 포함
 #include "afxdialogex.h"
+#include "CSettingsDlg.h"
+#include "InventoryManagerDlg.h" // ✅ [추가] 부모 다이얼로그의 함수를 호출하기 위해 include
+
+// CSettingsDlg 대화 상자
 
 IMPLEMENT_DYNAMIC(CSettingsDlg, CDialogEx)
 
 CSettingsDlg::CSettingsDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_SETTINGS_DIALOG, pParent)
-	, m_pParentDlg(nullptr) // 멤버 변수 초기화
+	, m_nWarningThreshold(0)
+	, m_nDangerThreshold(0)
+	, m_pParentDlg(nullptr)
+	// ✅ [추가] 멤버 변수 초기화
+	, m_strDbHost(_T(""))
+	, m_nDbPort(3306)
+	, m_strDbName(_T(""))
+	, m_strDbUser(_T(""))
+	, m_strDbPass(_T(""))
 {
+
 }
 
 CSettingsDlg::~CSettingsDlg()
@@ -22,66 +33,86 @@ CSettingsDlg::~CSettingsDlg()
 void CSettingsDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	// 컨트롤 ID와 멤버 변수를 연결합니다.
-	DDX_Control(pDX, IDC_EDIT_WARNING, m_editWarning);
-	DDX_Control(pDX, IDC_EDIT_DANGER, m_editDanger);
+	DDX_Text(pDX, IDC_EDIT_WARNING, m_nWarningThreshold);
+	DDX_Text(pDX, IDC_EDIT_DANGER, m_nDangerThreshold);
+
+	// ✅ [추가] 새로 추가할 컨트롤 ID와 변수를 연결합니다.
+	DDX_Text(pDX, IDC_EDIT_DB_HOST, m_strDbHost);
+	DDX_Text(pDX, IDC_EDIT_DB_PORT, m_nDbPort);
+	DDX_Text(pDX, IDC_EDIT_DB_NAME, m_strDbName);
+	DDX_Text(pDX, IDC_EDIT_DB_USER, m_strDbUser);
+	DDX_Text(pDX, IDC_EDIT_DB_PASS, m_strDbPass);
 }
+
 
 BEGIN_MESSAGE_MAP(CSettingsDlg, CDialogEx)
-	// '적용' 버튼(IDC_BUTTON_APPLY)을 클릭 시 OnBnClickedButtonApply 함수가 호출되도록 연결
 	ON_BN_CLICKED(IDC_BUTTON_APPLY, &CSettingsDlg::OnBnClickedButtonApply)
+	// ✅ [추가] 저장 버튼 ID와 핸들러 함수를 연결합니다.
+	ON_BN_CLICKED(IDC_BTN_SAVE_DB, &CSettingsDlg::OnBnClickedButtonSaveDb)
 END_MESSAGE_MAP()
 
-BOOL CSettingsDlg::OnInitDialog()
+
+// CSettingsDlg 메시지 처리기
+
+void CSettingsDlg::SetParentDlg(CInventoryManagerDlg* pDlg)
 {
-	CDialogEx::OnInitDialog();
-	return TRUE;
+	m_pParentDlg = pDlg;
 }
 
-// InventoryManagerDlg에서 호출하여 부모-자식 관계를 설정하는 함수
-void CSettingsDlg::SetParentDlg(CInventoryManagerDlg* pParent)
-{
-	m_pParentDlg = pParent;
-}
-
-// 탭을 선택할 때마다 InventoryManagerDlg에서 호출하여 현재 값을 표시하는 함수
-void CSettingsDlg::LoadSettings(int nWarning, int nDanger)
-{
-	CString strWarning, strDanger;
-	strWarning.Format(_T("%d"), nWarning);
-	strDanger.Format(_T("%d"), nDanger);
-
-	m_editWarning.SetWindowText(strWarning);
-	m_editDanger.SetWindowText(strDanger);
-}
-
-// '적용' 버튼을 클릭했을 때 호출되는 함수
 void CSettingsDlg::OnBnClickedButtonApply()
 {
-	// 부모 다이얼로그 포인터가 유효한지 확인
-	if (!m_pParentDlg) {
-		AfxMessageBox(_T("오류: 메인 다이얼로그와 연결되지 않았습니다."), MB_ICONERROR);
+	UpdateData(TRUE); // 컨트롤의 값을 변수로 가져옴
+
+	if (m_nWarningThreshold <= m_nDangerThreshold)
+	{
+		AfxMessageBox(_T("경고: '주의' 기준은 '위험' 기준보다 커야 합니다."));
 		return;
 	}
 
-	CString strWarning, strDanger;
-	m_editWarning.GetWindowText(strWarning);
-	m_editDanger.GetWindowText(strDanger);
+	if (m_pParentDlg)
+	{
+		m_pParentDlg->UpdateThresholds(m_nWarningThreshold, m_nDangerThreshold);
+	}
+}
 
-	int nWarning = _ttoi(strWarning);
-	int nDanger = _ttoi(strDanger);
+void CSettingsDlg::LoadSettings(int nWarning, int nDanger)
+{
+	m_nWarningThreshold = nWarning;
+	m_nDangerThreshold = nDanger;
+	UpdateData(FALSE); // 변수의 값을 컨트롤에 표시
+}
 
-	// 입력 값 유효성 검사
-	if (nWarning <= nDanger) {
-		AfxMessageBox(_T("'주의' 기준값은 '위험' 기준값보다 커야 합니다."), MB_ICONWARNING);
+// ✅ [추가] 메인 다이얼로그로부터 DB 설정값을 받아와 에디트 컨트롤에 채워주는 함수
+void CSettingsDlg::LoadDbSettings(const DB_CONFIG& dbConfig)
+{
+	m_strDbHost = dbConfig.strHost;
+	m_nDbPort = dbConfig.nPort;
+	m_strDbName = dbConfig.strDatabase;
+	m_strDbUser = dbConfig.strUser;
+	m_strDbPass = dbConfig.strPassword;
+
+	UpdateData(FALSE); // 변수의 값을 컨트롤에 표시
+}
+
+// ✅ [추가] 'DB 설정 저장' 버튼을 눌렀을 때 호출될 함수
+void CSettingsDlg::OnBnClickedButtonSaveDb()
+{
+	if (m_pParentDlg == nullptr)
+	{
+		AfxMessageBox(_T("오류: 부모 다이얼로그가 설정되지 않았습니다."));
 		return;
 	}
-	if (nWarning <= 0 || nDanger < 0) {
-		AfxMessageBox(_T("'주의' 기준값은 0보다 커야하며, '위험' 기준값은 0 이상이어야 합니다."), MB_ICONWARNING);
-		return;
-	}
 
-	// 검증이 완료되면, 부모 다이얼로그의 public 함수를 호출하여 값을 전달
-	m_pParentDlg->UpdateThresholds(nWarning, nDanger);
-	AfxMessageBox(_T("설정이 적용되었습니다."), MB_ICONINFORMATION);
+	UpdateData(TRUE); // 컨트롤의 값을 변수에 저장
+
+	// 현재 UI에 입력된 값으로 새로운 DB_CONFIG 구조체를 만듭니다.
+	DB_CONFIG newConfig;
+	newConfig.strHost = m_strDbHost;
+	newConfig.nPort = m_nDbPort;
+	newConfig.strDatabase = m_strDbName;
+	newConfig.strUser = m_strDbUser;
+	newConfig.strPassword = m_strDbPass;
+
+	// 부모(메인) 다이얼로그에 새로운 설정값으로 재연결을 요청합니다.
+	m_pParentDlg->UpdateDbConfigAndReconnect(newConfig);
 }
