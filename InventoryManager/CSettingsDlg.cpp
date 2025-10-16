@@ -22,6 +22,9 @@ CSettingsDlg::CSettingsDlg(CWnd* pParent /*=nullptr*/)
 	, m_strDbName(_T(""))
 	, m_strDbUser(_T(""))
 	, m_strDbPass(_T(""))
+	// Gemini 설정 초기화
+	, m_strGeminiApiKey(_T(""))
+	, m_bEnableGemini(FALSE)
 {
 
 }
@@ -42,6 +45,10 @@ void CSettingsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_DB_NAME, m_strDbName);
 	DDX_Text(pDX, IDC_EDIT_DB_USER, m_strDbUser);
 	DDX_Text(pDX, IDC_EDIT_DB_PASS, m_strDbPass);
+
+	// Gemini 설정 연결
+	DDX_Text(pDX, IDC_EDIT_GEMINI_API_KEY, m_strGeminiApiKey);
+	DDX_Check(pDX, IDC_CHECK_ENABLE_GEMINI, m_bEnableGemini);
 }
 
 
@@ -49,6 +56,9 @@ BEGIN_MESSAGE_MAP(CSettingsDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_APPLY, &CSettingsDlg::OnBnClickedButtonApply)
 	// ✅ [추가] 저장 버튼 ID와 핸들러 함수를 연결합니다.
 	ON_BN_CLICKED(IDC_BTN_SAVE_DB, &CSettingsDlg::OnBnClickedButtonSaveDb)
+	// Gemini 설정 핸들러
+	ON_BN_CLICKED(IDC_CHECK_ENABLE_GEMINI, &CSettingsDlg::OnBnClickedCheckEnableGemini)
+	ON_BN_CLICKED(IDC_BUTTON_TEST_GEMINI, &CSettingsDlg::OnBnClickedButtonTestGemini)
 END_MESSAGE_MAP()
 
 
@@ -115,4 +125,97 @@ void CSettingsDlg::OnBnClickedButtonSaveDb()
 
 	// 부모(메인) 다이얼로그에 새로운 설정값으로 재연결을 요청합니다.
 	m_pParentDlg->UpdateDbConfigAndReconnect(newConfig);
+}
+
+// ========================================
+// Gemini 설정 로드
+// ========================================
+void CSettingsDlg::LoadGeminiSettings()
+{
+	CGeminiManager* pGemini = CGeminiManager::GetInstance();
+	if (pGemini)
+	{
+		GEMINI_CONFIG config = pGemini->GetConfig();
+		m_strGeminiApiKey = config.strApiKey;
+		m_bEnableGemini = config.bEnabled ? TRUE : FALSE;
+		UpdateData(FALSE);
+	}
+}
+
+// ========================================
+// Gemini 설정 저장
+// ========================================
+void CSettingsDlg::SaveGeminiSettings()
+{
+	UpdateData(TRUE);
+
+	CGeminiManager* pGemini = CGeminiManager::GetInstance();
+	if (pGemini)
+	{
+		GEMINI_CONFIG config;
+		config.strApiKey = m_strGeminiApiKey;
+		config.bEnabled = (m_bEnableGemini == TRUE);
+		config.strModel = _T("gemini-pro");
+		pGemini->SetConfig(config);
+
+		AfxMessageBox(_T("Gemini AI 설정이 저장되었습니다."));
+	}
+}
+
+// ========================================
+// Gemini 활성화 체크박스 핸들러
+// ========================================
+void CSettingsDlg::OnBnClickedCheckEnableGemini()
+{
+	SaveGeminiSettings();
+}
+
+// ========================================
+// Gemini 테스트 버튼 핸들러
+// ========================================
+void CSettingsDlg::OnBnClickedButtonTestGemini()
+{
+	UpdateData(TRUE);
+
+	if (m_strGeminiApiKey.IsEmpty())
+	{
+		AfxMessageBox(_T("API 키를 입력해주세요."));
+		return;
+	}
+
+	// 설정 임시 저장
+	CGeminiManager* pGemini = CGeminiManager::GetInstance();
+	if (pGemini)
+	{
+		GEMINI_CONFIG config;
+		config.strApiKey = m_strGeminiApiKey;
+		config.bEnabled = TRUE;
+		config.strModel = _T("gemini-pro");
+		pGemini->SetConfig(config);
+
+		// 간단한 테스트 요청
+		CString strResult = pGemini->GenerateProductDescription(
+			_T("테스트 상품"), 
+			_T("테스트 브랜드"), 
+			_T("테스트 카테고리")
+		);
+
+		if (strResult.IsEmpty())
+		{
+			CString strError = pGemini->GetLastError();
+			CString strMsg;
+			strMsg.Format(_T("Gemini API 연결 실패:\n%s"), strError);
+			AfxMessageBox(strMsg);
+		}
+		else
+		{
+			CString strMsg;
+			strMsg.Format(_T("Gemini API 연결 성공!\n\n테스트 응답:\n%s"), strResult);
+			AfxMessageBox(strMsg);
+		}
+
+		// 원래 설정으로 복구
+		config.bEnabled = (m_bEnableGemini == TRUE);
+		pGemini->SetConfig(config);
+	}
 }

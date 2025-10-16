@@ -1001,6 +1001,9 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 			// [추가된 핵심 코드] 현재 DB 정보를 설정 탭의 입력란에 로드합니다.
 			m_pSettingsDlg->LoadDbSettings(m_dbConfig);
 
+			// Gemini AI 설정 로드
+			m_pSettingsDlg->LoadGeminiSettings();
+
 			m_pSettingsDlg->ShowWindow(SW_SHOW);
 		}
 		else {
