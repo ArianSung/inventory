@@ -391,81 +391,53 @@ BOOL CDBManager::AddStock(int nOptionID, int nQuantity)
 // ========================================
 BOOL CDBManager::DeleteInventoryItem(int nOptionID)
 {
+	// 1. DB 연결 상태 확인
 	if (m_pConnection == nullptr) {
-		AfxMessageBox(_T("디버그: DBManager 오류 - DB에 연결되지 않았습니다."));
 		SetError(_T("DB에 연결되지 않았습니다."));
 		return FALSE;
 	}
 
+	// 2. 트랜잭션 시작
 	if (mysql_query(m_pConnection, "START TRANSACTION")) {
-		CString msg;
-		msg.Format(_T("디버그: 트랜잭션 시작 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
 		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
 		return FALSE;
 	}
-	AfxMessageBox(_T("디버그: 1. 트랜잭션 시작 성공"));
 
 	CString strQuery;
-	my_ulonglong affected_rows;
 
-	// order_details 삭제
+	// 3. order_details 테이블에서 해당 옵션 삭제
 	strQuery.Format(_T("DELETE FROM order_details WHERE option_id = %d"), nOptionID);
 	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: order_details 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
 		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
+		mysql_query(m_pConnection, "ROLLBACK"); // 오류 발생 시 롤백
 		return FALSE;
 	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 2. order_details 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
 
-	// cart 삭제
+	// 4. cart 테이블에서 해당 옵션 삭제
 	strQuery.Format(_T("DELETE FROM cart WHERE option_id = %d"), nOptionID);
 	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: cart 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
 		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
+		mysql_query(m_pConnection, "ROLLBACK"); // 오류 발생 시 롤백
 		return FALSE;
 	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 3. cart 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
 
-	// product_options 삭제
+	// 5. product_options 테이블에서 해당 옵션 삭제
 	strQuery.Format(_T("DELETE FROM product_options WHERE option_id = %d"), nOptionID);
 	if (mysql_query(m_pConnection, ConvertToUtf8A(strQuery))) {
-		CString msg;
-		msg.Format(_T("디버그: product_options 삭제 실패 - %s"), ConvertFromUTF8(mysql_error(m_pConnection)));
-		AfxMessageBox(msg);
 		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	affected_rows = mysql_affected_rows(m_pConnection);
-	strQuery.Format(_T("디버그: 4. product_options 삭제 시도 (영향 받은 행: %llu)"), affected_rows);
-	AfxMessageBox(strQuery);
-
-	// ✨ 핵심 진단: product_options 테이블에서 행이 삭제되지 않았다면 실패 처리
-	if (affected_rows == 0) {
-		AfxMessageBox(_T("디버그: 5. [실패] product_options 테이블에서 삭제된 행이 0개입니다. 롤백합니다."));
-		SetError(_T("DB 오류: 삭제할 품목을 찾지 못했습니다 (영향받은 행 없음). Option ID 값을 확인하세요."));
-		mysql_query(m_pConnection, "ROLLBACK");
-		return FALSE;
-	}
-	// 6. 모든 삭제가 성공했으면 최종 적용 (커밋)
-	if (mysql_query(m_pConnection, "COMMIT") != 0) { // ✅ != 0 비교 추가!
-		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
-		mysql_query(m_pConnection, "ROLLBACK");
+		mysql_query(m_pConnection, "ROLLBACK"); // 오류 발생 시 롤백
 		return FALSE;
 	}
 
-	SetError(_T(""), 0); // 성공 시 에러 메시지 초기화
+	// 6. 모든 쿼리가 성공하면 최종 커밋
+	if (mysql_query(m_pConnection, "COMMIT")) {
+		SetError(ConvertFromUTF8(mysql_error(m_pConnection)));
+		mysql_query(m_pConnection, "ROLLBACK"); // 커밋 실패 시에도 롤백 시도
+		return FALSE;
+	}
+
+	// 7. 성공 시 에러 메시지 초기화
+	SetError(_T(""), 0);
 	return TRUE;
 }
 
