@@ -5,6 +5,7 @@
 #include <vector>
 #include "DBManager.h"
 #include "CEditStockDlg.h"
+#include "CAutoOrderNotifyDlg.h"
 
 // [ADD] 통계 다이얼로그 전방 선언
 class CStatsDlg;
@@ -29,9 +30,10 @@ public:
 
 protected:
     virtual void DoDataExchange(CDataExchange* pDX); // DDX/DDV 지원입니다.
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
+    afx_msg void OnDestroy();
 
     // 구현입니다.
-protected:
     HICON m_hIcon;
 
     // 생성된 메시지 맵 함수
@@ -70,6 +72,8 @@ public:
     // =========================
     int       m_nCurrentTab;        // 현재 선택된 탭 인덱스
     UINT_PTR  m_nTimerID;           // 타이머 ID
+	UINT_PTR  m_nAutoOrderTimerID;  // 자동발주 타이머 ID
+    CTime     m_tSnoozeEndTime;
     int       m_nRefreshInterval;   // 자동 새로고침 간격 (초)
     BOOL      m_bAutoRefresh;       // 자동 새로고침 활성화 여부
 
@@ -119,8 +123,26 @@ public:
     void UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig);
     void SaveThresholdsToConfig();
 
+    // =========================
+   // 자동발주 관련 함수
+   // =========================
+    void UpdateAutoOrderSettings(BOOL bEnabled, int nThreshold, int nQuantity, int nInterval);
+    void LoadAutoOrderConfig();
+    void SaveAutoOrderConfig();
+    void CheckAutoOrder();  // 자동발주 체크 함수 (나중에 타이머에서 호출)
+    void ExecuteAutoOrder(const std::vector<AUTO_ORDER_ITEM>& vecItems);
     int m_nDangerThreshold;  // 위험 재고 기준
     int m_nWarningThreshold; // 주의 재고 기준
+    void StartAutoOrderTimer();   // 타이머 시작
+    void StopAutoOrderTimer();    // 타이머 중지
+
+    // =========================
+   // 자동발주 설정 변수
+   // =========================
+    BOOL m_bAutoOrderEnabled;        // 자동발주 활성화 여부
+    int  m_nAutoOrderThreshold;      // 발주 기준 재고
+    int  m_nAutoOrderQuantity;       // 발주 수량
+    int  m_nAutoOrderInterval;       // 체크 주기 (초)
 
     afx_msg void OnBnClickedButtonOrder();
     afx_msg void OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult);

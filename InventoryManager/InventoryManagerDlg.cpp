@@ -42,6 +42,8 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
 	, m_nDangerThreshold(10)    // '위험' 재고 기준 수량 (기본값 10개 미만)
 	, m_nWarningThreshold(30)   // '주의' 재고 기준 수량 (기본값 30개 미만)
 	, m_nTimerID(0)             // 타이머 ID (0은 비활성 상태)
+	, m_nAutoOrderTimerID(0)	// 자동발주 타이머 ID (0은 비활성 상태)
+	, m_tSnoozeEndTime(0)		// 스누즈 종료 시간 (기본값 0)
 	, m_nRefreshInterval(30)    // 자동 새로고침 간격 (기본 30초)
 	, m_bAutoRefresh(TRUE)      // 자동 새로고침 기능 활성화 여부
 	, m_pDBManager(nullptr)     // 데이터베이스 관리자 포인터
@@ -49,6 +51,10 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
 	, m_pSettingsDlg(nullptr)   // 설정 대화 상자 포인터
 	, m_nSortColumn(7)          // 기본 정렬 컬럼 인덱스 (7번 '재고' 컬럼)
 	, m_bSortAscending(true)    // 기본 정렬 방식 (true: 오름차순, false: 내림차순)
+	, m_bAutoOrderEnabled(FALSE)
+	, m_nAutoOrderThreshold(50)
+	, m_nAutoOrderQuantity(100)
+	, m_nAutoOrderInterval(30)
 {
 	// 프로그램 아이콘을 로드합니다.
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
@@ -61,7 +67,6 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
  */
 CInventoryManagerDlg::~CInventoryManagerDlg()
 {
-	if (m_nTimerID != 0) { KillTimer(m_nTimerID); m_nTimerID = 0; } // 타이머가 실행 중이면 종료
 	DisconnectDatabase(); // 데이터베이스 연결 해제
 	CDBManager::DestroyInstance(); // DB 관리자 싱글톤 인스턴스 파괴
 	m_pDBManager = nullptr;
@@ -94,8 +99,10 @@ void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
 // 예를 들어, 특정 버튼이 클릭되면 어떤 함수를 호출할지 정의합니다.
 BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	ON_WM_PAINT() // 윈도우를 다시 그려야 할 때 (예: 화면에 처음 나타날 때) OnPaint 함수를 호출
+	ON_WM_TIMER() // 타이머 이벤트가 발생할 때 OnTimer 함수를 호출
 	ON_WM_QUERYDRAGICON() // 최소화된 창을 드래그할 때 아이콘을 얻기 위해 OnQueryDragIcon 함수를 호출
 	ON_WM_CLOSE() // 창의 닫기 버튼을 누를 때 OnClose 함수를 호출
+	ON_WM_DESTROY()
 	// IDC_BUTTON_CLEAR_LOG ID를 가진 버튼이 클릭되면 OnBnClickedButtonClearLog 함수를 호출
 	ON_BN_CLICKED(IDC_BUTTON_CLEAR_LOG, &CInventoryManagerDlg::OnBnClickedButtonClearLog)
 	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CInventoryManagerDlg::OnBnClickedButtonRefresh)
@@ -158,6 +165,7 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 	// 데이터베이스에 연결을 시도합니다.
 	AddLog(_T("🔌 데이터베이스 연결 시도 중..."));
 	LoadDbConfig();
+	LoadAutoOrderConfig();
 	ConnectDatabase();
 
 	// 데이터베이스 연결에 성공한 경우에만 데이터 관련 작업을 수행합니다.
@@ -249,6 +257,12 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 
 	// 현재 선택된 탭(기본값: 재고현황)에 맞는 UI만 표시합니다.
 	ShowTabPage(m_tabMain.GetCurSel());
+
+	// 자동발주 타이머 시작
+	if (m_bAutoOrderEnabled)
+	{
+		StartAutoOrderTimer();
+	}
 
 	return TRUE;
 }
@@ -372,6 +386,16 @@ void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 {
 	m_nCurrentTab = m_tabMain.GetCurSel(); // 선택된 탭의 인덱스를 가져옵니다.
+
+	CString strTabName;
+	TCITEM item = { 0 };
+	item.mask = TCIF_TEXT;
+	item.pszText = strTabName.GetBuffer(50);
+	item.cchTextMax = 50;
+	m_tabMain.GetItem(m_nCurrentTab, &item);
+	strTabName.ReleaseBuffer();
+	AddLog(_T("📄 탭 변경: ") + strTabName);
+
 	ShowTabPage(m_nCurrentTab); // 해당 탭에 맞는 화면을 보여줍니다.
 	*pResult = 0;
 }
@@ -402,7 +426,7 @@ void CInventoryManagerDlg::ConnectDatabase()
 	//[수정] m_dbConfig 변수를 사용하도록 수정
 	BOOL bResult = m_pDBManager->Connect(m_dbConfig);
 
-	//[수정] 로그를 출력할 때도 m_dbConfig 변수를 사용하도록 수정
+	//[수정] 로그을 출력할 때도 m_dbConfig 변수를 사용하도록 수정
 	if (bResult)
 	{
 		AddLog(_T("✅ 데이터베이스 연결 성공!"));
@@ -939,11 +963,16 @@ void CInventoryManagerDlg::OnBnClickedButton2()
  */
 void CInventoryManagerDlg::OnBnClickedButton3()
 {
+	AddLog(_T("'상품 추가' 대화상자를 엽니다."));
 	CAddProductDlg dlg;
 	// '상품 추가' 대화상자를 띄우고, '확인'을 누르면 목록을 새로고침합니다.
 	if (dlg.DoModal() == IDOK) {
-		AddLog(_T("✨ 새 상품이 추가되었습니다. 목록을 새로고침합니다."));
+		AddLog(_T("새 상품이 추가되었습니다. 목록을 새로고침합니다."));
 		RefreshInventoryData();
+	}
+	else
+	{
+		AddLog(_T("🚫 '상품 추가'가 취소되었습니다."));
 	}
 }
 
@@ -1058,6 +1087,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	GetDlgItem(IDC_BUTTON3)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_BRAND)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_CATEGORY)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_BUTTON_EXPORT_INV)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
 	// '통계' 탭을 선택한 경우, 통계 다이얼로그를 보여줍니다.
 	if (m_pStatsDlg) {
@@ -1078,7 +1108,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 
 			// [추가된 핵심 코드] 현재 DB 정보를 설정 탭의 입력란에 로드합니다.
 			m_pSettingsDlg->LoadDbSettings(m_dbConfig);
-
+			m_pSettingsDlg->LoadAutoOrderConfig();
 			m_pSettingsDlg->ShowWindow(SW_SHOW);
 		}
 		else {
@@ -1112,6 +1142,13 @@ void CInventoryManagerDlg::ApplyFiltersAndSearch()
 	m_editSearch.GetWindowText(strSearchKeyword);
 	strSearchKeyword.Trim(); // 앞뒤 공백 제거
 	const CString lowerKeyword = ToLower(strSearchKeyword); // 대소문자 구분 없는 비교를 위해 소문자로 변환
+
+	CString strLog;
+	strLog.Format(_T("🔍 검색/필터 적용: 브랜드=[%s], 카테고리=[%s], 키워드=[%s]"),
+		strBrandFilter.IsEmpty() ? _T("전체") : strBrandFilter,
+		strCategoryFilter.IsEmpty() ? _T("전체") : strCategoryFilter,
+		strSearchKeyword.IsEmpty() ? _T("없음") : strSearchKeyword);
+	AddLog(strLog);
 
 	// 3. 필터링된 결과를 담을 새로운 벡터를 준비합니다.
 	std::vector<DisplayRow> filteredRows;
@@ -1179,6 +1216,16 @@ void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pR
 		m_nSortColumn = nColumn;
 		m_bSortAscending = true;
 	}
+
+	TCHAR szText[256] = { 0 };
+	HDITEM hdi = { 0 };
+	hdi.mask = HDI_TEXT;
+	hdi.pszText = szText;
+	hdi.cchTextMax = 256;
+	m_listInventory.GetHeaderCtrl()->GetItem(nColumn, &hdi);
+	CString strLog;
+	strLog.Format(_T("🔃 목록 정렬: '%s' 컬럼, %s"), CString(hdi.pszText), m_bSortAscending ? _T("오름차순") : _T("내림차순"));
+	AddLog(strLog);
 
 	// std::sort에 사용할 비교 함수(람다)를 정의합니다.
 	auto sortLambda = [&](const DisplayRow& a, const DisplayRow& b) -> bool {
@@ -1462,4 +1509,279 @@ void CInventoryManagerDlg::OnBnClickedButtonExportInv()
 		AddLog(_T("❌ 내보내기 실패: ") + CString(szError));
 	}
 	END_CATCH
+}
+
+// ========================================
+// 설정 다이얼로그에서 자동발주 설정 업데이트
+// ========================================
+void CInventoryManagerDlg::UpdateAutoOrderSettings(BOOL bEnabled, int nThreshold, int nQuantity, int nInterval)
+{
+	m_bAutoOrderEnabled = bEnabled;
+	m_nAutoOrderThreshold = nThreshold;
+	m_nAutoOrderQuantity = nQuantity;
+	m_nAutoOrderInterval = nInterval;
+
+	// config.ini에 저장
+	SaveAutoOrderConfig();
+
+	CString strLog;
+	strLog.Format(_T("⚙️ 자동발주 설정 변경: %s, 기준=%d개, 수량=%d개, 주기=%d초"),
+		bEnabled ? _T("활성화") : _T("비활성화"),
+		nThreshold, nQuantity, nInterval);
+	AddLog(strLog);
+
+	// 타이머 재시작
+	if (bEnabled)
+	{
+		StartAutoOrderTimer();  // 활성화 → 타이머 시작
+	}
+	else
+	{
+		StopAutoOrderTimer();   // 비활성화 → 타이머 중지
+	}
+}
+
+// ========================================
+// config.ini에서 자동발주 설정 로드
+// ========================================
+void CInventoryManagerDlg::LoadAutoOrderConfig()
+{
+	CString strConfigFile = GetConfigFilePath();
+
+	// 활성화 여부
+	int nEnabled = GetPrivateProfileInt(_T("AutoOrder"), _T("Enabled"), 0, strConfigFile);
+	m_bAutoOrderEnabled = (nEnabled == 1);
+
+	// 발주 기준 재고
+	m_nAutoOrderThreshold = GetPrivateProfileInt(_T("AutoOrder"), _T("Threshold"), 50, strConfigFile);
+
+	// 발주 수량
+	m_nAutoOrderQuantity = GetPrivateProfileInt(_T("AutoOrder"), _T("Quantity"), 100, strConfigFile);
+
+	// 체크 주기
+	m_nAutoOrderInterval = GetPrivateProfileInt(_T("AutoOrder"), _T("Interval"), 30, strConfigFile);
+}
+
+// ========================================
+// config.ini에 자동발주 설정 저장
+// ========================================
+void CInventoryManagerDlg::SaveAutoOrderConfig()
+{
+	CString strConfigFile = GetConfigFilePath();
+	CString strValue;
+
+	// 활성화 여부
+	strValue.Format(_T("%d"), m_bAutoOrderEnabled ? 1 : 0);
+	WritePrivateProfileString(_T("AutoOrder"), _T("Enabled"), strValue, strConfigFile);
+
+	// 발주 기준
+	strValue.Format(_T("%d"), m_nAutoOrderThreshold);
+	WritePrivateProfileString(_T("AutoOrder"), _T("Threshold"), strValue, strConfigFile);
+
+	// 발주 수량
+	strValue.Format(_T("%d"), m_nAutoOrderQuantity);
+	WritePrivateProfileString(_T("AutoOrder"), _T("Quantity"), strValue, strConfigFile);
+
+	// 체크 주기
+	strValue.Format(_T("%d"), m_nAutoOrderInterval);
+	WritePrivateProfileString(_T("AutoOrder"), _T("Interval"), strValue, strConfigFile);
+}
+
+// ========================================
+// 자동발주 체크
+// ========================================
+void CInventoryManagerDlg::CheckAutoOrder()
+{
+	// 0. [추가] 알림 끄기(Snooze) 상태인지 확인
+	if (CTime::GetCurrentTime() < m_tSnoozeEndTime)
+	{
+		// 아직 알림 끄기 시간이 끝나지 않았으므로, 아무것도 하지 않고 함수를 종료합니다.
+		return;
+	}
+
+	// 1. 자동발주가 비활성화되어 있으면 종료
+	if (!m_bAutoOrderEnabled)
+	{
+		return;
+	}
+
+	// 2. DB 연결 확인
+	if (!m_bDBConnected || m_pDBManager == nullptr)
+	{
+		return;
+	}
+
+	// 3. 발주 기준 이하인 품목 찾기
+	std::vector<AUTO_ORDER_ITEM> vecAutoOrderItems;
+
+	for (size_t i = 0; i < m_vecInventory.size(); i++)
+	{
+		const INVENTORY_ITEM& invItem = m_vecInventory[i];
+
+		// 재고가 기준 이하인지 확인
+		if (invItem.nStock <= m_nAutoOrderThreshold)
+		{
+			AUTO_ORDER_ITEM autoItem;
+			autoItem.nOptionID = invItem.nOptionID;
+			autoItem.strOptionCode = invItem.strOptionCode;
+			autoItem.strProductName = invItem.strProductName;
+			autoItem.nCurrentStock = invItem.nStock;
+			autoItem.nOrderQuantity = m_nAutoOrderQuantity;
+			autoItem.nExpectedStock = invItem.nStock + m_nAutoOrderQuantity;
+
+			vecAutoOrderItems.push_back(autoItem);
+		}
+	}
+
+	// 4. 발주할 품목이 없으면 종료
+	if (vecAutoOrderItems.empty())
+	{
+		return;
+	}
+
+	// 5. 알림 다이얼로그 표시
+	CAutoOrderNotifyDlg dlg;
+	dlg.m_vecOrderItems = vecAutoOrderItems;
+
+	INT_PTR nResult = dlg.DoModal();
+
+	// 6. 사용자 선택에 따라 처리
+	if (nResult == IDOK)
+	{
+		// "모두 발주 확정" 선택
+		ExecuteAutoOrder(vecAutoOrderItems);
+	}
+	else if (nResult == IDCANCEL)
+	{
+		// "나중에 확인" 선택
+		AddLog(_T("⏰ 자동발주를 나중에 확인하기로 했습니다."));
+	}
+	else if (nResult == IDIGNORE)
+	{
+		// "무시" 선택 -> 1시간 동안 알림 끄기
+		m_tSnoozeEndTime = CTime::GetCurrentTime() + CTimeSpan(0, 1, 0, 0); // 1시간 후
+		CString strLog;
+		strLog.Format(_T("🚫 자동발주 알림을 1시간 동안 끄기 설정했습니다. (종료: %s)"),
+			m_tSnoozeEndTime.Format(_T("%H:%M:%S")));
+		AddLog(strLog);
+	}
+}
+
+// ========================================
+// 자동발주 실행
+// ========================================
+void CInventoryManagerDlg::ExecuteAutoOrder(const std::vector<AUTO_ORDER_ITEM>& vecItems)
+{
+	if (vecItems.empty())
+	{
+		return;
+	}
+
+	CString strLog;
+	strLog.Format(_T("📦 자동발주 실행 중... (총 %d개 품목)"), (int)vecItems.size());
+	AddLog(strLog);
+
+	int nSuccessCount = 0;
+	int nFailCount = 0;
+
+	// 각 품목에 대해 발주 실행
+	for (size_t i = 0; i < vecItems.size(); i++)
+	{
+		const AUTO_ORDER_ITEM& item = vecItems[i];
+
+		// DBManager를 통해 재고 추가
+		BOOL bResult = m_pDBManager->AddStock(item.nOptionID, item.nOrderQuantity);
+
+		if (bResult)
+		{
+			nSuccessCount++;
+			strLog.Format(_T("  ✅ %s: %d개 발주 성공"),
+				item.strOptionCode, item.nOrderQuantity);
+			AddLog(strLog);
+		}
+		else
+		{
+			nFailCount++;
+			strLog.Format(_T("  ❌ %s: 발주 실패 - %s"),
+				item.strOptionCode, m_pDBManager->GetLastError());
+			AddLog(strLog);
+		}
+	}
+
+	// 결과 요약
+	strLog.Format(_T("📊 자동발주 완료: 성공 %d건, 실패 %d건"), nSuccessCount, nFailCount);
+	AddLog(strLog);
+
+	// 성공한 건이 있으면 화면 새로고침
+	if (nSuccessCount > 0)
+	{
+		RefreshInventoryData();
+		AddLog(_T("🔄 재고 목록을 새로고침했습니다."));
+	}
+
+	// 완료 메시지
+	CString strMsg;
+	strMsg.Format(_T("자동발주가 완료되었습니다.\n\n성공: %d건\n실패: %d건"),
+		nSuccessCount, nFailCount);
+	AfxMessageBox(strMsg, MB_ICONINFORMATION);
+}
+
+// ========================================
+// 자동발주 타이머 시작
+// ========================================
+void CInventoryManagerDlg::StartAutoOrderTimer()
+{
+	// 기존 타이머가 있으면 먼저 중지
+	StopAutoOrderTimer();
+
+	// 타이머 ID: 2번 사용 (1번은 기존 새로고침용)
+	// 주기: m_nAutoOrderInterval초 (밀리초로 변환)
+	m_nAutoOrderTimerID = SetTimer(2, m_nAutoOrderInterval * 1000, nullptr);
+
+	if (m_nAutoOrderTimerID != 0)
+	{
+		CString strLog;
+		strLog.Format(_T("⏰ 자동발주 타이머 시작 (주기: %d초)"), m_nAutoOrderInterval);
+		AddLog(strLog);
+	}
+	else
+	{
+		AddLog(_T("❌ 자동발주 타이머 시작 실패"));
+	}
+}
+
+// ========================================
+// 자동발주 타이머 중지
+// ========================================
+void CInventoryManagerDlg::StopAutoOrderTimer()
+{
+	if (m_nAutoOrderTimerID != 0)
+	{
+		KillTimer(m_nAutoOrderTimerID);
+		m_nAutoOrderTimerID = 0;
+		AddLog(_T("⏹️ 자동발주 타이머 중지"));
+	}
+}
+
+// ========================================
+// 타이머 이벤트 처리
+// ========================================
+void CInventoryManagerDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 2)  // 자동발주 타이머 (ID=2)
+	{
+		// 자동발주 체크 실행
+		CheckAutoOrder();
+	}
+
+	CDialogEx::OnTimer(nIDEvent);
+}
+
+
+void CInventoryManagerDlg::OnDestroy()
+{
+	CDialogEx::OnDestroy();
+
+	if (m_nTimerID != 0) { KillTimer(m_nTimerID); m_nTimerID = 0; } // 타이머가 실행 중이면 종료
+	if (m_nAutoOrderTimerID != 0) { KillTimer(m_nAutoOrderTimerID); m_nAutoOrderTimerID = 0; } // 자동발주 타이머 종료
 }
