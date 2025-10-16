@@ -681,6 +681,9 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 	dlg.m_strProductName = pItem->strProductName;
 	dlg.m_nCurrentStock = pItem->nStock;
 
+	dlg.m_nWarningThreshold = this->m_nWarningThreshold;
+	dlg.m_nDangerThreshold = this->m_nDangerThreshold;
+
 	// 사용자가 '발주' 대화 상자에서 '확인'을 누르면
 	if (dlg.DoModal() == IDOK)
 	{

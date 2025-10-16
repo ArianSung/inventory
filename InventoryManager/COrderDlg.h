@@ -27,6 +27,8 @@ public:
 	CString m_strOptionCode;     // 품번
 	CString m_strProductName;    // 상품명
 	int m_nCurrentStock;         // 현재 재고
+	int m_nWarningThreshold;     // '주의' 재고 기준
+	int m_nDangerThreshold;      // '위험' 재고 기준
 
 	// ========================================
 	// 출력 데이터
