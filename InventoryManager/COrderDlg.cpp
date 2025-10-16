@@ -12,6 +12,8 @@ COrderDlg::COrderDlg(CWnd* pParent /*=nullptr*/)
 	, m_nOrderQuantity(50)
 	, m_strOptionCode(_T(""))
 	, m_strProductName(_T(""))
+	, m_nWarningThreshold(30)   // 기본값 설정 (추후 덮어씀)
+	, m_nDangerThreshold(10)    // 기본값 설정 (추후 덮어씀)
 {
 }
 
@@ -48,13 +50,13 @@ BOOL COrderDlg::OnInitDialog()
 
 	CString strStatus;
 	if (m_nCurrentStock == 0)
-		strStatus = _T("⚫");
-	else if (m_nCurrentStock < 10)
-		strStatus = _T("🔴");
-	else if (m_nCurrentStock < 30)
-		strStatus = _T("🟡");
+		strStatus = _T("(품절)");
+	else if (m_nCurrentStock < m_nDangerThreshold)  // 하드코딩된 10 대신 변수 사용
+		strStatus = _T("(위험)");
+	else if (m_nCurrentStock < m_nWarningThreshold) // 하드코딩된 30 대신 변수 사용
+		strStatus = _T("(주의)");
 	else
-		strStatus = _T("🟢");
+		strStatus = _T("(정상)");
 
 	strInfo.Format(_T("현재 재고: %d개 %s"), m_nCurrentStock, strStatus);
 	SetDlgItemText(IDC_STATIC_CURRENT_STOCK, strInfo);
@@ -80,13 +82,13 @@ void COrderDlg::UpdateExpectedStock()
 
 	CString strStatus;
 	if (nExpected == 0)
-		strStatus = _T("⚫");
-	else if (nExpected < 10)
-		strStatus = _T("🔴");
-	else if (nExpected < 30)
-		strStatus = _T("🟡");
+		strStatus = _T("(품절)");
+	else if (nExpected < m_nDangerThreshold)  // 하드코딩된 10 대신 변수 사용
+		strStatus = _T("(위험)");
+	else if (nExpected < m_nWarningThreshold) // 하드코딩된 30 대신 변수 사용
+		strStatus = _T("(주의)");
 	else
-		strStatus = _T("🟢");
+		strStatus = _T("(정상)");
 
 	CString strInfo;
 	strInfo.Format(_T("발주 후 예상: %d개 %s"), nExpected, strStatus);

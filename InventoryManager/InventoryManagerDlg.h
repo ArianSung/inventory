@@ -145,4 +145,5 @@ protected:
 public:
     CComboBox m_comboFilterBrand;
     CComboBox m_comboFilterCategory;
+    afx_msg void OnBnClickedButtonExportInv();
 };

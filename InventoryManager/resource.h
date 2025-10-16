@@ -9,6 +9,7 @@
 #define IDD_DIALOG_EDIT_STOCK           132
 #define IDD_ADD_PRODUCT                 136
 #define IDD_SETTINGS_DIALOG             140
+#define IDD_BULK_ORDER_DIALOG           142
 #define IDC_TAB_MAIN                    1000
 #define IDC_EDIT_LOG                    1002
 #define IDC_STATIC_LOG_LABEL            1004
@@ -52,6 +53,9 @@
 #define IDC_DATETIMEPICKER_END          1060
 #define IDC_BUTTON1                     1061
 #define IDC_BUTTON_SEARCH_PERIOD        1061
+#define IDC_BUTTON_EXPORT_INV           1061
+#define IDC_EDIT_BULK_QUANTITY          1065
+#define IDC_STATIC_ITEM_COUNT           1066
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053
@@ -75,15 +79,14 @@
 #define IDC_EDIT_DB_USER                4064
 #define IDC_EDIT_DB_PASS                4065
 #define IDC_BTN_SAVE_DB                 4066
-#define IDC_EDIT_DB_HOST2               4067
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        142
+#define _APS_NEXT_RESOURCE_VALUE        144
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1065
+#define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif
