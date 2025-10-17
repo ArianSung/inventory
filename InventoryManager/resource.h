@@ -12,6 +12,7 @@
 #define IDC_EDIT_AUTO_ORDER_INTERVAL    140
 #define IDD_BULK_ORDER_DIALOG           142
 #define IDD_AUTO_ORDER_NOTIFY           144
+#define IDD_ADD_OPTION                  146
 #define IDC_TAB_MAIN                    1000
 #define IDC_EDIT_LOG                    1002
 #define IDC_STATIC_LOG_LABEL            1004
@@ -68,6 +69,14 @@
 #define IDC_EDIT_AUTO_ORDER_QUANTITY    1072
 #define IDC_BUTTON4                     1072
 #define IDC_BUTTON_TEST_AUTO_ORDER      1072
+#define IDC_BUTTON_ADD_OPTION           1072
+#define IDC_STATIC_PRODUCT_NAME_DISPLAY 1073
+#define IDC_STATIC_BRAND_DISPLAY        1074
+#define IDC_STATIC_CATEGORY_DISPLAY     1075
+#define IDC_COMBO_OPTION_COLOR          1077
+#define IDC_COMBO_OPTION_SIZE           1078
+#define IDC_EDIT_OPTION_STOCK           1079
+#define IDC_STATIC_OPTION_CODE_PREVIEW  1081
 #define IDD_STATS_DIALOG                2000
 #define IDC_COMBO_FILTER_BRAND          3052
 #define IDC_COMBO2                      3053
@@ -96,9 +105,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        146
+#define _APS_NEXT_RESOURCE_VALUE        148
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1073
+#define _APS_NEXT_CONTROL_VALUE         1082
 #define _APS_NEXT_SYMED_VALUE           105
 #endif
 #endif

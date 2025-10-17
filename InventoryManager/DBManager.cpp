@@ -670,3 +670,203 @@ BOOL CDBManager::DeleteOptionsAndCleanup(const std::vector<int>& vecOptionIDs)
 	return TRUE; // 모든 옵션 처리가 성공적으로 완료됨
 }
 
+
+// ========================================
+// 상품 정보 조회
+// ========================================
+BOOL CDBManager::GetProductInfo(int nProductID, CString& strProductName,
+	CString& strBrandName, CString& strCategoryName)
+{
+	if (!m_bConnected) {
+		SetError(_T("데이터베이스에 연결되지 않았습니다."));
+		return FALSE;
+	}
+
+	CString strQuery;
+	strQuery.Format(
+		_T("SELECT p.product_name, b.brand_name, c.category_name ")
+		_T("FROM products p ")
+		_T("JOIN brands b ON p.brand_id = b.brand_id ")
+		_T("JOIN categories c ON p.category_id = c.category_id ")
+		_T("WHERE p.product_id = %d"),
+		nProductID);
+
+	if (!ExecuteSelect(strQuery)) {
+		return FALSE;
+	}
+
+	if (GetRowCount() == 0) {
+		FreeResult();
+		SetError(_T("상품 정보를 찾을 수 없습니다."));
+		return FALSE;
+	}
+
+	MYSQL_ROW row = FetchRow();
+	if (row && row[0] && row[1] && row[2]) {
+		strProductName = ConvertFromUTF8(row[0]);
+		strBrandName = ConvertFromUTF8(row[1]);
+		strCategoryName = ConvertFromUTF8(row[2]);
+		FreeResult();
+		return TRUE;
+	}
+
+	FreeResult();
+	return FALSE;
+}
+
+// ========================================
+// 상품 옵션 추가
+// ========================================
+BOOL CDBManager::AddProductOption(int nProductID, const CString& strColorName,
+	const CString& strSizeName, int nStock)
+{
+	if (!m_bConnected) {
+		SetError(_T("데이터베이스에 연결되지 않았습니다."));
+		return FALSE;
+	}
+
+	// 1. 중복 체크
+	if (CheckOptionExists(nProductID, strColorName, strSizeName)) {
+		SetError(_T("이미 동일한 색상/사이즈 조합이 존재합니다."));
+		return FALSE;
+	}
+
+	// 2. color_id와 size_id 조회
+	CString strQuery;
+	strQuery.Format(_T("SELECT color_id FROM colors WHERE color_name = '%s'"),
+		EscapeString(strColorName));
+	if (!ExecuteSelect(strQuery) || GetRowCount() == 0) {
+		FreeResult();
+		SetError(_T("색상 정보를 찾을 수 없습니다."));
+		return FALSE;
+	}
+	MYSQL_ROW row = FetchRow();
+	int nColorID = atoi(row[0]);
+	FreeResult();
+
+	strQuery.Format(_T("SELECT size_id FROM sizes WHERE size_name = '%s'"),
+		EscapeString(strSizeName));
+	if (!ExecuteSelect(strQuery) || GetRowCount() == 0) {
+		FreeResult();
+		SetError(_T("사이즈 정보를 찾을 수 없습니다."));
+		return FALSE;
+	}
+	row = FetchRow();
+	int nSizeID = atoi(row[0]);
+	FreeResult();
+
+	// 3. option_code 생성을 위한 정보 조회
+	strQuery.Format(
+		_T("SELECT b.brand_code, cat.category_code ")
+		_T("FROM products p ")
+		_T("JOIN brands b ON p.brand_id = b.brand_id ")
+		_T("JOIN categories cat ON p.category_id = cat.category_id ")
+		_T("WHERE p.product_id = %d"),
+		nProductID);
+
+	if (!ExecuteSelect(strQuery) || GetRowCount() == 0) {
+		FreeResult();
+		SetError(_T("상품 정보를 찾을 수 없습니다."));
+		return FALSE;
+	}
+	row = FetchRow();
+	CString strBrandCode = ConvertFromUTF8(row[0]);
+	CString strCategoryCode = ConvertFromUTF8(row[1]);
+	FreeResult();
+
+	// 색상 코드 조회
+	strQuery.Format(_T("SELECT color_code FROM colors WHERE color_id = %d"), nColorID);
+	ExecuteSelect(strQuery);
+	row = FetchRow();
+	CString strColorCode = ConvertFromUTF8(row[0]);
+	FreeResult();
+
+	// 4. option_code 생성
+	CString strOptionCode;
+	strOptionCode.Format(_T("%s-%s-%03d-%s-%s"),
+		strBrandCode, strCategoryCode, nProductID, strColorCode, strSizeName);
+
+	// 5. product_options 테이블에 INSERT
+	strQuery.Format(
+		_T("INSERT INTO product_options (product_id, color_id, size_id, stock, option_code) ")
+		_T("VALUES (%d, %d, %d, %d, '%s')"),
+		nProductID, nColorID, nSizeID, nStock, EscapeString(strOptionCode));
+
+	if (!ExecuteQuery(strQuery)) {
+		return FALSE;
+	}
+
+	SetError(_T(""), 0);
+	return TRUE;
+}
+
+// ========================================
+// 옵션 중복 체크
+// ========================================
+BOOL CDBManager::CheckOptionExists(int nProductID, const CString& strColorName,
+	const CString& strSizeName)
+{
+	if (!m_bConnected) {
+		SetError(_T("데이터베이스에 연결되지 않았습니다."));
+		return FALSE;
+	}
+
+	CString strQuery;
+	strQuery.Format(
+		_T("SELECT COUNT(*) FROM product_options po ")
+		_T("JOIN colors c ON po.color_id = c.color_id ")
+		_T("JOIN sizes s ON po.size_id = s.size_id ")
+		_T("WHERE po.product_id = %d ")
+		_T("AND c.color_name = '%s' ")
+		_T("AND s.size_name = '%s'"),
+		nProductID,
+		EscapeString(strColorName),
+		EscapeString(strSizeName));
+
+	if (!ExecuteSelect(strQuery)) {
+		return FALSE;
+	}
+
+	MYSQL_ROW row = FetchRow();
+	int nCount = 0;
+	if (row && row[0]) {
+		nCount = atoi(row[0]);
+	}
+	FreeResult();
+
+	return (nCount > 0); // true면 이미 존재함
+}
+
+// ========================================
+// 카테고리별 사용 가능한 사이즈 목록 조회
+// ========================================
+BOOL CDBManager::GetSizeListByCategory(const CString& strCategoryName, std::vector<CString>& vecSizes)
+{
+	vecSizes.clear();
+
+	if (!m_bConnected) {
+		SetError(_T("데이터베이스에 연결되지 않았습니다."));
+		return FALSE;
+	}
+
+	CString strQuery;
+	strQuery.Format(
+		_T("SELECT s.size_name FROM sizes s ")
+		_T("JOIN category_sizes cs ON s.size_id = cs.size_id ")
+		_T("JOIN categories c ON cs.category_id = c.category_id ")
+		_T("WHERE c.category_name = '%s' ")
+		_T("ORDER BY s.size_id"),
+		EscapeString(strCategoryName));
+
+	if (!ExecuteSelect(strQuery)) {
+		return FALSE;
+	}
+
+	MYSQL_ROW row;
+	while ((row = FetchRow()) != nullptr) {
+		if (row[0]) vecSizes.push_back(ConvertFromUTF8(row[0]));
+	}
+	FreeResult();
+	return TRUE;
+}
+

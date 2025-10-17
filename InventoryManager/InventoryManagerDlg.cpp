@@ -14,6 +14,7 @@
 #include <set> // 중복된 상품 삭제를 방지하기 위해 사용
 #include "CBulkOrderDlg.h" // '대량 발주' 대화 상자
 #include <fstream> // 파일 입출력 스트림
+#include "CAddOptionDlg.h" // '옵션 추가' 대화 상자
 
 #ifdef _DEBUG
 #define new DEBUG_NEW // 디버그 모드에서 메모리 누수 탐지를 위해 사용
@@ -121,6 +122,7 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤의 컬럼 헤더를 클릭하면 OnColumnclickListInventory 함수를 호출 (정렬 기능)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
 	ON_BN_CLICKED(IDC_BUTTON_EXPORT_INV, &CInventoryManagerDlg::OnBnClickedButtonExportInv)
+	ON_BN_CLICKED(IDC_BUTTON_ADD_OPTION, &CInventoryManagerDlg::OnBnClickedButtonAddOption)
 END_MESSAGE_MAP()
 
 
@@ -1097,6 +1099,7 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	GetDlgItem(IDC_COMBO_FILTER_BRAND)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_COMBO_FILTER_CATEGORY)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_BUTTON_EXPORT_INV)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_BUTTON_ADD_OPTION)->ShowWindow(showInventory ? SW_SHOW : SW_HIDE);
 
 	// '통계' 탭을 선택한 경우, 통계 다이얼로그를 보여줍니다.
 	if (m_pStatsDlg) {
@@ -1795,3 +1798,82 @@ void CInventoryManagerDlg::OnDestroy()
 	if (m_nAutoOrderTimerID != 0) { KillTimer(m_nAutoOrderTimerID); m_nAutoOrderTimerID = 0; } // 자동발주 타이머 종료
 }
 
+
+void CInventoryManagerDlg::OnBnClickedButtonAddOption()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	// 선택된 항목 확인
+	POSITION pos = m_listInventory.GetFirstSelectedItemPosition();
+	if (pos == nullptr) {
+		AfxMessageBox(_T("옵션을 추가할 상품을 먼저 선택해주세요."));
+		AddLog(_T("⚠️ 옵션 추가: 품목이 선택되지 않음"));
+		return;
+	}
+
+	// 단일 선택만 허용
+	if (m_listInventory.GetSelectedCount() > 1) {
+		AfxMessageBox(_T("옵션을 추가할 상품을 하나만 선택해주세요."));
+		AddLog(_T("⚠️ 옵션 추가: 여러 품목 선택됨"));
+		return;
+	}
+
+	// 선택된 항목의 정보 가져오기
+	int nItem = m_listInventory.GetNextSelectedItem(pos);
+	int nOptionID = (int)m_listInventory.GetItemData(nItem);
+
+	// m_vecInventory에서 해당 옵션의 product_id 찾기
+	int nProductID = 0;
+	for (size_t i = 0; i < m_vecInventory.size(); i++) {
+		if (m_vecInventory[i].nOptionID == nOptionID) {
+			nProductID = m_vecInventory[i].nProductID;
+			break;
+		}
+	}
+
+	if (nProductID == 0) {
+		AfxMessageBox(_T("상품 정보를 찾을 수 없습니다."));
+		AddLog(_T("❌ 옵션 추가: 상품 ID를 찾을 수 없음"));
+		return;
+	}
+
+	// 상품 정보 조회
+	CString strProductName, strBrandName, strCategoryName;
+	if (!m_pDBManager->GetProductInfo(nProductID, strProductName, strBrandName, strCategoryName)) {
+		CString strError;
+		strError.Format(_T("상품 정보 조회 실패: %s"), m_pDBManager->GetLastError());
+		AfxMessageBox(strError);
+		AddLog(_T("❌ ") + strError);
+		return;
+	}
+
+	// 옵션 추가 다이얼로그 표시
+	CAddOptionDlg dlg;
+	dlg.m_nProductID = nProductID;
+	dlg.m_strProductName = strProductName;
+	dlg.m_strBrandName = strBrandName;
+	dlg.m_strCategoryName = strCategoryName;
+
+	if (dlg.DoModal() == IDOK) {
+		CString strLog;
+		strLog.Format(_T("🔧 옵션 추가 시도: %s (%s/%s, 재고:%d)"),
+			strProductName, dlg.m_strColorName, dlg.m_strSizeName, dlg.m_nStock);
+		AddLog(strLog);
+
+		// DB에 옵션 추가
+		if (m_pDBManager->AddProductOption(nProductID, dlg.m_strColorName,
+			dlg.m_strSizeName, dlg.m_nStock)) {
+			AfxMessageBox(_T("옵션이 성공적으로 추가되었습니다."));
+			AddLog(_T("✅ 옵션 추가 성공!"));
+			RefreshInventoryData();
+		}
+		else {
+			CString strError;
+			strError.Format(_T("옵션 추가 실패: %s"), m_pDBManager->GetLastError());
+			AfxMessageBox(strError);
+			AddLog(_T("❌ ") + strError);
+		}
+	}
+	else {
+		AddLog(_T("🚫 옵션 추가 취소됨"));
+	}
+}

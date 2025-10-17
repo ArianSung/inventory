@@ -153,6 +153,16 @@ public:
 
 	BOOL GetCategoryList(std::vector<CString>& vecCategories);
 
+	// 상품 정보 조회 (product_id로)
+	BOOL GetProductInfo(int nProductID, CString& strProductName,CString& strBrandName, CString& strCategoryName);
+
+	// 옵션 중복 체크 (같은 product_id에 같은 color+size 조합이 있는지)
+	BOOL CheckOptionExists(int nProductID, const CString& strColorName,const CString& strSizeName);
+
+	// 상품 옵션 추가
+	BOOL AddProductOption(int nProductID, const CString& strColorName,const CString& strSizeName, int nStock);
+
+	BOOL GetSizeListByCategory(const CString& strCategoryName, std::vector<CString>& vecSizes);
 private:
 	// ========================================
 	// 내부 함수

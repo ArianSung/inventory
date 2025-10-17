@@ -195,6 +195,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CAddOptionDlg.h" />
     <ClInclude Include="CAddProductDlg.h" />
     <ClInclude Include="CAutoOrderNotifyDlg.h" />
     <ClInclude Include="CBulkOrderDlg.h" />
@@ -211,6 +212,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CAddOptionDlg.cpp" />
     <ClCompile Include="CAddProductDlg.cpp" />
     <ClCompile Include="CAutoOrderNotifyDlg.cpp" />
     <ClCompile Include="CBulkOrderDlg.cpp" />
