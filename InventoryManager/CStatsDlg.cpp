@@ -48,6 +48,7 @@ void CStatsDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CStatsDlg, CDialogEx)
     ON_WM_CLOSE()
     ON_BN_CLICKED(IDC_BUTTON_SEARCH_PERIOD, &CStatsDlg::OnBnClickedButtonSearchPeriod)
+    ON_WM_PAINT()
 END_MESSAGE_MAP()
 
 BOOL CStatsDlg::OnInitDialog()
@@ -389,4 +390,189 @@ void CStatsDlg::LoadDailyStatsByPeriod(const CString& strStartDate, const CStrin
 
 }
 
+void CStatsDlg::OnPaint()
+{
+    CPaintDC dc(this); // 그리기를 위한 디바이스 컨텍스트
+
+    // 기본 다이얼로그 그리기 (배경 등)
+    // CDialogEx::OnPaint(); // 필요 시 주석 해제 (보통은 아래 코드로 덮어씌움)
+
+    // 그래프 그리기 함수 호출
+    DrawGraph(dc);
+}
+
+void CStatsDlg::DrawGraph(CPaintDC& dc)
+{
+    // 1. 그래프 영역(Picture Control) 가져오기
+    CWnd* pGraphArea = GetDlgItem(IDC_STATIC_GRAPH);
+    if (pGraphArea == nullptr) return;
+
+    // [중요] Picture Control이 그래프를 가리지 않도록 숨김 처리
+    if (pGraphArea->IsWindowVisible()) pGraphArea->ShowWindow(SW_HIDE);
+
+    CRect rect;
+    pGraphArea->GetWindowRect(&rect);
+    ScreenToClient(&rect); // 다이얼로그 기준 좌표
+
+    // [더블 버퍼링] 메모리 DC 생성
+    CDC memDC;
+    CBitmap bitmap;
+    memDC.CreateCompatibleDC(&dc);
+    bitmap.CreateCompatibleBitmap(&dc, rect.Width(), rect.Height());
+    CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+
+    // 🟢 [핵심 수정] 좌표 원점 보정! 
+    // 다이얼로그 좌표(rect.left, rect.top)를 메모리 DC의 (0,0)으로 매핑합니다.
+    memDC.SetWindowOrg(rect.left, rect.top);
+
+    // 2. 배경 지우기 (흰색)
+    memDC.FillSolidRect(rect, RGB(255, 255, 255));
+
+    // 테두리 그리기
+    memDC.Draw3dRect(rect, RGB(200, 200, 200), RGB(200, 200, 200));
+
+    // 3. 데이터 가져오기
+    int nItemCount = m_listDaily.GetItemCount();
+
+    if (nItemCount == 0) {
+        memDC.SetTextAlign(TA_CENTER);
+        // 중앙 좌표 계산
+        CPoint ptCenter = rect.CenterPoint();
+        memDC.TextOut(ptCenter.x, ptCenter.y, _T("표시할 데이터가 없습니다."));
+
+        // 화면 복사 (BitBlt)
+        dc.BitBlt(rect.left, rect.top, rect.Width(), rect.Height(), &memDC, rect.left, rect.top, SRCCOPY);
+
+        memDC.SelectObject(pOldBitmap);
+        return;
+    }
+
+    // 그래프 내부 여백
+    CRect rcGraph = rect;
+    rcGraph.DeflateRect(50, 40, 20, 40);
+
+    // 4. 데이터 추출
+    struct GraphData { CString date; long long revenue; };
+    std::vector<GraphData> vecData;
+
+    int nStart = nItemCount - 1;
+    int nEnd = 0;
+    if (nItemCount > 30) nStart = 29; // 최근 30개 제한
+
+    long long nMaxRevenue = 1;
+
+    for (int i = nStart; i >= nEnd; i--)
+    {
+        CString strDate = m_listDaily.GetItemText(i, 0);
+        CString strRev = m_listDaily.GetItemText(i, 3);
+        strRev.Remove(_T(','));
+        long long nRev = _ttoi64(strRev);
+        if (nRev > nMaxRevenue) nMaxRevenue = nRev;
+        vecData.push_back({ strDate, nRev });
+    }
+
+    // 5. 막대 너비 계산
+    int nDataCount = (int)vecData.size();
+    if (nDataCount == 0) nDataCount = 1;
+
+    double dStepWidth = (double)rcGraph.Width() / nDataCount;
+    int nBarWidth = (int)(dStepWidth * 0.8);
+    if (nBarWidth < 2) nBarWidth = 2;
+
+    // 6. 폰트 및 펜 설정
+    CFont fontAxis, fontVal;
+    fontAxis.CreatePointFont(90, _T("맑은 고딕"));
+    int nFontSize = (nBarWidth > 30) ? 90 : 80;
+    fontVal.CreatePointFont(nFontSize, _T("맑은 고딕"));
+
+    CPen penAxis(PS_SOLID, 1, RGB(100, 100, 100));
+    CPen penGrid(PS_DOT, 1, RGB(220, 220, 220));
+
+    CPen* pOldPen = memDC.SelectObject(&penAxis);
+    CFont* pOldFont = memDC.SelectObject(&fontAxis);
+    memDC.SetBkMode(TRANSPARENT);
+
+    // 7. Y축 그리기
+    for (int i = 0; i <= 5; i++)
+    {
+        int y = rcGraph.bottom - (rcGraph.Height() * i / 5);
+
+        memDC.SelectObject(&penGrid);
+        memDC.MoveTo(rcGraph.left, y);
+        memDC.LineTo(rcGraph.right, y);
+
+        long long nVal = nMaxRevenue * i / 5;
+        CString strYVal;
+        if (nVal >= 10000) strYVal.Format(_T("%lld만"), nVal / 10000);
+        else strYVal.Format(_T("%lld"), nVal);
+
+        CRect rcText(rect.left, y - 10, rcGraph.left - 5, y + 10);
+        memDC.DrawText(strYVal, rcText, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+    }
+
+    // 8. 막대 그리기
+    CBrush brushBar(RGB(100, 149, 237));
+    CBrush brushMax(RGB(255, 99, 71));
+
+    int nLabelStep = 1;
+    if (dStepWidth < 35) nLabelStep = 2;
+    if (dStepWidth < 20) nLabelStep = 5;
+
+    for (int i = 0; i < nDataCount; i++)
+    {
+        long long nVal = vecData[i].revenue;
+        int nBarHeight = (int)((double)nVal / nMaxRevenue * rcGraph.Height());
+        if (nBarHeight == 0 && nVal > 0) nBarHeight = 1;
+
+        int centerX = rcGraph.left + (int)(i * dStepWidth + dStepWidth / 2);
+        CRect rcBar;
+        rcBar.left = centerX - nBarWidth / 2;
+        rcBar.right = rcBar.left + nBarWidth;
+        rcBar.bottom = rcGraph.bottom;
+        rcBar.top = rcGraph.bottom - nBarHeight;
+
+        if (nVal == nMaxRevenue) memDC.SelectObject(&brushMax);
+        else memDC.SelectObject(&brushBar);
+        memDC.Rectangle(rcBar);
+
+        if (nBarWidth > 25)
+        {
+            memDC.SelectObject(&fontVal);
+            CString strVal;
+            if (nVal >= 10000) strVal.Format(_T("%lld만"), nVal / 10000);
+            else strVal.Format(_T("%lld"), nVal);
+
+            memDC.SetTextColor(RGB(50, 50, 50));
+            CRect rcVal = rcBar;
+            rcVal.top -= 20;
+            rcVal.bottom = rcBar.top;
+            memDC.DrawText(strVal, rcVal, DT_CENTER | DT_BOTTOM | DT_SINGLELINE);
+        }
+
+        if (i % nLabelStep == 0)
+        {
+            memDC.SelectObject(&fontAxis);
+            memDC.SetTextColor(RGB(0, 0, 0));
+            CString strDateShort = vecData[i].date.Right(5);
+            CRect rcDate(centerX - 20, rcGraph.bottom + 5, centerX + 20, rcGraph.bottom + 25);
+            memDC.DrawText(strDateShort, rcDate, DT_CENTER | DT_TOP | DT_SINGLELINE);
+        }
+    }
+
+    // 제목
+    CFont fontTitle;
+    fontTitle.CreatePointFont(120, _T("맑은 고딕"));
+    memDC.SelectObject(&fontTitle);
+    memDC.SetTextColor(RGB(0, 0, 0));
+    memDC.TextOut(rect.left + 20, rect.top + 10, _T("📊 일별 매출 추이"));
+    1
+        // 🟢 [핵심 수정] 화면 복사 시 좌표 주의
+        // 소스(memDC)의 (rect.left, rect.top) 내용을 화면(dc)의 (rect.left, rect.top)으로 복사
+        // 왜냐하면 위에서 SetWindowOrg를 했기 때문에 memDC의 rect.left가 실제 비트맵의 0입니다.
+        ; dc.BitBlt(rect.left, rect.top, rect.Width(), rect.Height(), &memDC, rect.left, rect.top, SRCCOPY);
+
+    memDC.SelectObject(pOldBitmap);
+    memDC.SelectObject(pOldPen);
+    memDC.SelectObject(pOldFont);
+}
 

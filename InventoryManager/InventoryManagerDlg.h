@@ -6,6 +6,7 @@
 #include "DBManager.h"
 #include "CEditStockDlg.h"
 #include "CAutoOrderNotifyDlg.h"
+#include "CAIOrderDlg.h"
 
 // [ADD] 통계 다이얼로그 전방 선언
 class CStatsDlg;
@@ -168,4 +169,5 @@ public:
     CComboBox m_comboFilterBrand;
     CComboBox m_comboFilterCategory;
     afx_msg void OnBnClickedButtonExportInv();
+    afx_msg void OnBnClickedBtnAiOrder();
 };

@@ -670,3 +670,32 @@ BOOL CDBManager::DeleteOptionsAndCleanup(const std::vector<int>& vecOptionIDs)
 	return TRUE; // 모든 옵션 처리가 성공적으로 완료됨
 }
 
+int CDBManager::GetSalesCount(int nOptionID, int nDays)
+{
+	if (!m_bConnected) return 0;
+
+	// 오늘 날짜에서 nDays 전 날짜부터 지금까지의 판매량 합계
+	CString strQuery;
+	strQuery.Format(
+		_T("SELECT SUM(quantity) FROM order_details od ")
+		_T("JOIN orders o ON od.order_id = o.order_id ")
+		_T("WHERE od.option_id = %d AND o.order_date >= DATE_SUB(NOW(), INTERVAL %d DAY)"),
+		nOptionID, nDays
+	);
+
+	if (ExecuteSelect(strQuery) && GetRowCount() > 0)
+	{
+		MYSQL_ROW row = FetchRow();
+		int nSales = 0;
+		// NULL 체크 (판매 기록이 없으면 NULL일 수 있음)
+		if (row && row[0])
+		{
+			nSales = atoi(row[0]);
+		}
+		FreeResult();
+		return nSales;
+	}
+
+	FreeResult();
+	return 0; // 판매 기록 없음
+}

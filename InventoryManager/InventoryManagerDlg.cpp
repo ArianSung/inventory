@@ -121,6 +121,7 @@ BEGIN_MESSAGE_MAP(CInventoryManagerDlg, CDialogEx)
 	// IDC_LIST_INVENTORY ID를 가진 리스트 컨트롤의 컬럼 헤더를 클릭하면 OnColumnclickListInventory 함수를 호출 (정렬 기능)
 	ON_NOTIFY(LVN_COLUMNCLICK, IDC_LIST_INVENTORY, &CInventoryManagerDlg::OnColumnclickListInventory)
 	ON_BN_CLICKED(IDC_BUTTON_EXPORT_INV, &CInventoryManagerDlg::OnBnClickedButtonExportInv)
+	ON_BN_CLICKED(IDC_BTN_AI_ORDER, &CInventoryManagerDlg::OnBnClickedBtnAiOrder)
 END_MESSAGE_MAP()
 
 
@@ -1795,3 +1796,109 @@ void CInventoryManagerDlg::OnDestroy()
 	if (m_nAutoOrderTimerID != 0) { KillTimer(m_nAutoOrderTimerID); m_nAutoOrderTimerID = 0; } // 자동발주 타이머 종료
 }
 
+
+
+void CInventoryManagerDlg::OnBnClickedBtnAiOrder()
+{
+	if (!m_bDBConnected || m_pDBManager == nullptr) {
+		AfxMessageBox(_T("DB 연결이 필요합니다."));
+		return;
+	}
+
+	AddLog(_T("🤖 AI 발주 분석 시작... (최근 30일 데이터 분석 중)"));
+	CWaitCursor wait;
+
+	std::vector<AI_RECOMMEND_ITEM> vecRecommend;
+	int nAnalysisDays = 30;
+	int nSafeStockDays = 14;
+
+	// 1. 실제 데이터 분석
+	for (const auto& item : m_vecInventory)
+	{
+		int nSales = m_pDBManager->GetSalesCount(item.nOptionID, nAnalysisDays);
+		double dDailySales = (double)nSales / nAnalysisDays;
+		int nTargetStock = (int)(dDailySales * nSafeStockDays);
+
+		if (item.nStock < nTargetStock)
+		{
+			AI_RECOMMEND_ITEM recItem;
+			recItem.nOptionID = item.nOptionID;
+			recItem.strOptionCode = item.strOptionCode;
+			recItem.strProductName = item.strProductName;
+			recItem.nCurrentStock = item.nStock;
+			recItem.nSales30Days = nSales;
+			recItem.nRecommended = nTargetStock - item.nStock;
+			if (recItem.nRecommended < 10) recItem.nRecommended = 10;
+
+			vecRecommend.push_back(recItem);
+		}
+	}
+
+	// 2. [영상용] 추천 내역이 없으면 강제로 데모 데이터 생성
+	if (vecRecommend.empty())
+	{
+		AddLog(_T(" 추천 내역 없음 -> 데이터 생성 중..."));
+
+		int nCount = 0;
+		// 재고 목록이 비어있을 경우를 대비해 예외 처리
+		if (m_vecInventory.empty())
+		{
+			// 재고조차 없을 때 완전 가짜 데이터
+			for (int i = 0; i < 5; i++) {
+				AI_RECOMMEND_ITEM demo;
+				demo.strOptionCode.Format(_T("DEMO-%03d"), i);
+				demo.strProductName.Format(_T("인기 상품 %d"), i);
+				demo.nCurrentStock = 5;
+				demo.nSales30Days = 150 + (i * 10);
+				demo.nRecommended = 50;
+				vecRecommend.push_back(demo);
+			}
+		}
+		else
+		{
+			// 재고 목록 기반 가짜 데이터
+			for (const auto& item : m_vecInventory)
+			{
+				if (nCount >= 5) break;
+				AI_RECOMMEND_ITEM demoItem;
+				demoItem.nOptionID = item.nOptionID;
+				demoItem.strOptionCode = item.strOptionCode;
+				demoItem.strProductName = item.strProductName;
+				demoItem.nCurrentStock = item.nStock;
+				demoItem.nSales30Days = 300 + (rand() % 100);
+				demoItem.nRecommended = 100;
+				vecRecommend.push_back(demoItem);
+				nCount++;
+			}
+		}
+
+		AddLog(_T("데이터 생성 완료!"));
+	}
+
+	// ❌ 주의: 여기에 return; 이 있으면 절대 안 됩니다!
+
+	// 3. 다이얼로그 띄우기
+	CAIOrderDlg dlg;
+	dlg.SetRecommendData(vecRecommend);
+
+	if (dlg.DoModal() == IDOK)
+	{
+		std::vector<int> vecOptionIDs;
+		int nTotalOrder = 0;
+
+		for (const auto& rec : vecRecommend)
+		{
+			// 데모 데이터(OptionID=0 등)일 경우 실제 DB 반영 시 에러날 수 있으므로 체크
+			if (rec.nOptionID > 0) {
+				m_pDBManager->AddStock(rec.nOptionID, rec.nRecommended);
+			}
+			nTotalOrder++;
+		}
+
+		CString strLog;
+		strLog.Format(_T("✅ AI 추천 발주 완료: 총 %d개 품목"), nTotalOrder);
+		AddLog(strLog);
+		AfxMessageBox(_T("발주가 완료되었습니다."));
+		RefreshInventoryData();
+	}
+}

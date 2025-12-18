@@ -17,13 +17,13 @@ struct DB_CONFIG
 	// 기본값 설정
 	DB_CONFIG()
 	{
-		strHost = _T("192.168.0.92");
+		strHost = _T("127.0.0.1");
 		nPort = 3306;
 		strDatabase = _T("themost_db");
-		strUser = _T("mfcuser");
-		strPassword = _T("Moble1234");
+		strUser = _T("root");
+		strPassword = _T("1234");
 	}
-};
+};	
 
 // ========================================
 // 재고 데이터 구조체
@@ -130,7 +130,7 @@ public:
 	// 유틸리티
 	// ========================================
 	CString EscapeString(const CString& strInput);  // SQL Injection 방지
-
+	int GetSalesCount(int nOptionID, int nDays);
 	//======================================
 	//품목 추가
 	//======================================

@@ -196,6 +196,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CAddProductDlg.h" />
+    <ClInclude Include="CAIOrderDlg.h" />
     <ClInclude Include="CAutoOrderNotifyDlg.h" />
     <ClInclude Include="CBulkOrderDlg.h" />
     <ClInclude Include="CEditStockDlg.h" />
@@ -212,6 +213,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CAddProductDlg.cpp" />
+    <ClCompile Include="CAIOrderDlg.cpp" />
     <ClCompile Include="CAutoOrderNotifyDlg.cpp" />
     <ClCompile Include="CBulkOrderDlg.cpp" />
     <ClCompile Include="CEditStockDlg.cpp" />

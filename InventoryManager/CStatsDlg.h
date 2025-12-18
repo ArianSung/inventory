@@ -1,4 +1,4 @@
-// === CStatsDlg.h (PATCH) ===
+    // === CStatsDlg.h (PATCH) ===
 #pragma once
 #include <vector>
 #include "resource.h"
@@ -24,6 +24,8 @@ protected:
     virtual void DoDataExchange(CDataExchange* pDX);
     virtual BOOL OnInitDialog();
     DECLARE_MESSAGE_MAP()
+    afx_msg void OnPaint(); // 화면 그리기 메시지 핸들러
+    void DrawGraph(CPaintDC& dc); // 실제 그래프 그리는 함수
 
     // ===== UI =====
     CListCtrl m_listOrders;
