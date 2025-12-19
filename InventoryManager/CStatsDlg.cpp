@@ -116,18 +116,18 @@ void CStatsDlg::InitLists()
     if (auto* h2 = m_listBrand.GetHeaderCtrl())
         for (int i = h2->GetItemCount() - 1; i >= 0; --i) m_listBrand.DeleteColumn(i);
     m_listBrand.InsertColumn(0, _T("브랜드"), LVCFMT_LEFT, 60);
-    m_listBrand.InsertColumn(1, _T("주문수"), LVCFMT_RIGHT, 50);      // ✨ 추가
-    m_listBrand.InsertColumn(2, _T("판매량"), LVCFMT_RIGHT, 50);      // ✨ 수정
-    m_listBrand.InsertColumn(3, _T("매출액"), LVCFMT_RIGHT, 100);     // ✨ 추가
+    m_listBrand.InsertColumn(1, _T("주문수"), LVCFMT_RIGHT, 50);
+    m_listBrand.InsertColumn(2, _T("판매량"), LVCFMT_RIGHT, 50);
+    m_listBrand.InsertColumn(3, _T("매출액"), LVCFMT_RIGHT, 100);
 
     // [ADD] 날짜별 총매출
     m_listDaily.DeleteAllItems();
     if (auto* h3 = m_listDaily.GetHeaderCtrl())
         for (int i = h3->GetItemCount() - 1; i >= 0; --i) m_listDaily.DeleteColumn(i);
     m_listDaily.InsertColumn(0, _T("날짜"), LVCFMT_LEFT, 70);
-    m_listDaily.InsertColumn(1, _T("주문수"), LVCFMT_RIGHT, 50);      // ✨ 추가
-    m_listDaily.InsertColumn(2, _T("판매량"), LVCFMT_RIGHT, 50);      // ✨ 추가
-    m_listDaily.InsertColumn(3, _T("매출액"), LVCFMT_RIGHT, 90);      // ✨ 수정
+    m_listDaily.InsertColumn(1, _T("주문수"), LVCFMT_RIGHT, 50);
+    m_listDaily.InsertColumn(2, _T("판매량"), LVCFMT_RIGHT, 50);
+    m_listDaily.InsertColumn(3, _T("매출액"), LVCFMT_RIGHT, 90);
 }
 
 void CStatsDlg::LoadStats()
@@ -177,7 +177,7 @@ void CStatsDlg::LoadStats()
     {
         CString sql =
             _T("SELECT b.brand_name, ")
-            _T("       COUNT(DISTINCT o.order_id) AS order_count, ")  // ✨ 추가
+            _T("       COUNT(DISTINCT o.order_id) AS order_count, ")
             _T("       SUM(od.quantity) AS qty_sold, ")
             _T("       SUM(od.quantity * od.price_per_item) AS revenue ")
             _T("FROM order_details od ")
@@ -195,12 +195,12 @@ void CStatsDlg::LoadStats()
             for (size_t i = 0; i < rows.size(); ++i) {
                 const auto& r = rows[i];
                 int idx = m_listBrand.InsertItem((int)i, r.size() > 0 ? r[0] : _T(""));
-                m_listBrand.SetItemText(idx, 1, r.size() > 1 ? r[1] : _T(""));  // ✨ 주문수
-                m_listBrand.SetItemText(idx, 2, r.size() > 2 ? r[2] : _T(""));  // 판매량
-                m_listBrand.SetItemText(idx, 3, r.size() > 3 ? r[3] : _T(""));  // ✨ 매출액
+                m_listBrand.SetItemText(idx, 1, r.size() > 1 ? r[1] : _T(""));
+                m_listBrand.SetItemText(idx, 2, r.size() > 2 ? r[2] : _T(""));
+                m_listBrand.SetItemText(idx, 3, r.size() > 3 ? r[3] : _T(""));
             }
             m_listBrand.SetRedraw(TRUE);
-            // AutoSizeColumns(m_listBrand);  // ✨ 삭제
+            // AutoSizeColumns(m_listBrand);
         }
     }
 
@@ -208,8 +208,8 @@ void CStatsDlg::LoadStats()
     {
         CString sql =
             _T("SELECT DATE(o.order_date) AS ymd, ")
-            _T("       COUNT(DISTINCT o.order_id) AS order_count, ")  // ✨ 추가
-            _T("       SUM(od.quantity) AS total_qty, ")              // ✨ 추가
+            _T("       COUNT(DISTINCT o.order_id) AS order_count, ")
+            _T("       SUM(od.quantity) AS total_qty, ")
             _T("       COALESCE(SUM(od.quantity * od.price_per_item), 0) AS revenue ")
             _T("FROM orders o ")
             _T("JOIN order_details od ON od.order_id = o.order_id ")
@@ -223,12 +223,12 @@ void CStatsDlg::LoadStats()
             for (size_t i = 0; i < rows.size(); ++i) {
                 const auto& r = rows[i];
                 int idx = m_listDaily.InsertItem((int)i, r.size() > 0 ? r[0] : _T(""));
-                m_listDaily.SetItemText(idx, 1, r.size() > 1 ? r[1] : _T(""));  // ✨ 주문수
-                m_listDaily.SetItemText(idx, 2, r.size() > 2 ? r[2] : _T(""));  // ✨ 판매량
-                m_listDaily.SetItemText(idx, 3, r.size() > 3 ? r[3] : _T(""));  // 매출액
+                m_listDaily.SetItemText(idx, 1, r.size() > 1 ? r[1] : _T(""));
+                m_listDaily.SetItemText(idx, 2, r.size() > 2 ? r[2] : _T(""));
+                m_listDaily.SetItemText(idx, 3, r.size() > 3 ? r[3] : _T(""));
             }
             m_listDaily.SetRedraw(TRUE);
-            // AutoSizeColumns(m_listDaily);  // ✨ 삭제
+            // AutoSizeColumns(m_listDaily);
         }
     }
 }
@@ -307,7 +307,6 @@ void CStatsDlg::LoadBrandStatsByPeriod(const CString& strStartDate, const CStrin
 {
     m_listBrand.DeleteAllItems();
 
-    // ✅ SQL 쿼리 수정 (orders 테이블 JOIN 추가)
     CString strQuery;
     strQuery.Format(
         _T("SELECT b.brand_name, ")
@@ -315,11 +314,11 @@ void CStatsDlg::LoadBrandStatsByPeriod(const CString& strStartDate, const CStrin
         _T("SUM(od.quantity) as total_quantity, ")
         _T("SUM(od.quantity * od.price_per_item) as total_sales ")
         _T("FROM order_details od ")
-        _T("JOIN orders o ON od.order_id = o.order_id ")  // ✨ orders 테이블 조인
+        _T("JOIN orders o ON od.order_id = o.order_id ")
         _T("JOIN product_options po ON od.option_id = po.option_id ")
         _T("JOIN products p ON po.product_id = p.product_id ")
         _T("JOIN brands b ON p.brand_id = b.brand_id ")
-        _T("WHERE DATE(o.order_date) BETWEEN '%s' AND '%s' ")  // ✨ order_date 사용
+        _T("WHERE DATE(o.order_date) BETWEEN '%s' AND '%s' ")
         _T("GROUP BY b.brand_name ")
         _T("ORDER BY total_sales DESC"),
         strStartDate, strEndDate

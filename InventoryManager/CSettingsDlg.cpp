@@ -5,7 +5,7 @@
 #include "InventoryManager.h"
 #include "afxdialogex.h"
 #include "CSettingsDlg.h"
-#include "InventoryManagerDlg.h" // ✅ [추가] 부모 다이얼로그의 함수를 호출하기 위해 include
+#include "InventoryManagerDlg.h"
 
 // CSettingsDlg 대화 상자
 
@@ -16,7 +16,6 @@ CSettingsDlg::CSettingsDlg(CWnd* pParent /*=nullptr*/)
 	, m_nWarningThreshold(0)
 	, m_nDangerThreshold(0)
 	, m_pParentDlg(nullptr)
-	// ✅ [추가] 멤버 변수 초기화
 	, m_strDbHost(_T(""))
 	, m_nDbPort(3306)
 	, m_strDbName(_T(""))
@@ -40,7 +39,6 @@ void CSettingsDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_WARNING, m_nWarningThreshold);
 	DDX_Text(pDX, IDC_EDIT_DANGER, m_nDangerThreshold);
 
-	// ✅ [추가] 새로 추가할 컨트롤 ID와 변수를 연결합니다.
 	DDX_Text(pDX, IDC_EDIT_DB_HOST, m_strDbHost);
 	DDX_Text(pDX, IDC_EDIT_DB_PORT, m_nDbPort);
 	DDX_Text(pDX, IDC_EDIT_DB_NAME, m_strDbName);
@@ -55,7 +53,6 @@ void CSettingsDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CSettingsDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_APPLY, &CSettingsDlg::OnBnClickedButtonApply)
-	// ✅ [추가] 저장 버튼 ID와 핸들러 함수를 연결합니다.
 	ON_BN_CLICKED(IDC_BTN_SAVE_DB, &CSettingsDlg::OnBnClickedButtonSaveDb)
 	ON_BN_CLICKED(IDC_BUTTON_AUTO_ORDER_APPLY, &CSettingsDlg::OnBnClickedButtonAutoOrderApply)
 END_MESSAGE_MAP()
@@ -91,7 +88,6 @@ void CSettingsDlg::LoadSettings(int nWarning, int nDanger)
 	UpdateData(FALSE); // 변수의 값을 컨트롤에 표시
 }
 
-// ✅ [추가] 메인 다이얼로그로부터 DB 설정값을 받아와 에디트 컨트롤에 채워주는 함수
 void CSettingsDlg::LoadDbSettings(const DB_CONFIG& dbConfig)
 {
 	m_strDbHost = dbConfig.strHost;
@@ -103,7 +99,6 @@ void CSettingsDlg::LoadDbSettings(const DB_CONFIG& dbConfig)
 	UpdateData(FALSE); // 변수의 값을 컨트롤에 표시
 }
 
-// ✅ [추가] 'DB 설정 저장' 버튼을 눌렀을 때 호출될 함수
 void CSettingsDlg::OnBnClickedButtonSaveDb()
 {
 	if (m_pParentDlg == nullptr)

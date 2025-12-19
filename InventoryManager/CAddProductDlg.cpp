@@ -61,13 +61,11 @@ BOOL CAddProductDlg::OnInitDialog()
         m_comboSize.SetCurSel(0);
     }
 
-    // ▼▼▼ '종류' 목록을 채우는 이 부분이 누락되었을 가능성이 높습니다! ▼▼▼
     // 종류 목록 채우기
     if (pDBManager->GetCategoryList(vecItems)) {
         for (const auto& item : vecItems) m_comboWare.AddString(item);
         m_comboWare.SetCurSel(0);
     }
-    // ▲▲▲ 여기까지 ▲▲▲
 
     // 콤보박스 드롭다운 목록에 최소 10개의 항목이 보이도록 설정합니다.
     m_comboBrand.SetMinVisibleItems(10);

@@ -7,7 +7,7 @@
 #include "InventoryManager.h"
 #include "InventoryManagerDlg.h"
 #include "CStatsDlg.h"
-#include "CSettingsDlg.h" // ✅ CSettingsDlg 헤더 포함
+#include "CSettingsDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW

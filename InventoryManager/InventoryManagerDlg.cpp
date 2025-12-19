@@ -1300,7 +1300,6 @@ void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
 	RefreshInventoryData();
 }
 
-// ✅ [추가] config.ini 파일의 전체 경로를 만들어주는 함수
 CString GetConfigFilePath()
 {
 	TCHAR szPath[MAX_PATH];
@@ -1314,7 +1313,6 @@ CString GetConfigFilePath()
 	return strPath + _T("\\config.ini"); // 실행 파일 경로에 config.ini를 덧붙여 반환
 }
 
-// ✅ [추가] config.ini 파일에서 DB 정보를 읽어와 m_dbConfig 변수에 저장하는 함수
 void CInventoryManagerDlg::LoadDbConfig()
 {
 	CString strConfigFile = GetConfigFilePath();
@@ -1350,7 +1348,6 @@ void CInventoryManagerDlg::LoadDbConfig()
 	}
 }
 
-// ✅ [추가] 현재 m_dbConfig 변수에 저장된 DB 정보를 config.ini 파일에 기록하는 함수
 void CInventoryManagerDlg::SaveDbConfig()
 {
 	CString strConfigFile = GetConfigFilePath();
@@ -1364,7 +1361,6 @@ void CInventoryManagerDlg::SaveDbConfig()
 	WritePrivateProfileString(_T("Database"), _T("Password"), m_dbConfig.strPassword, strConfigFile);
 }
 
-// ✅ [추가] CSettingsDlg로부터 새로운 DB 설정을 받아 재연결을 수행하는 함수
 void CInventoryManagerDlg::UpdateDbConfigAndReconnect(const DB_CONFIG& newConfig)
 {
 	AddLog(_T("⚙️ DB 설정 변경 시도..."));

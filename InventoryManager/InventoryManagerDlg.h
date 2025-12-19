@@ -46,7 +46,7 @@ protected:
 private:
     // [ADD] 통계 탭 내장 표시를 위한 멤버
     CStatsDlg* m_pStatsDlg = nullptr;  // 통계 자식 다이얼로그 포인터(한 번만 생성)
-    CSettingsDlg* m_pSettingsDlg = nullptr; // ✅ 이 줄을 추가하세요!
+    CSettingsDlg* m_pSettingsDlg = nullptr;
     void ShowTabPage(int idx);         // 탭별 UI 토글(재고/통계/설정)
     void ApplyFiltersAndSearch(); // 필터와 검색을 모두 적용하는 함수
     int m_nSortColumn;       // 현재 정렬된 컬럼 인덱스
@@ -82,7 +82,7 @@ public:
     // =========================
     CDBManager* m_pDBManager;    // DB 관리자 (싱글톤 인스턴스)
     BOOL        m_bDBConnected;  // DB 연결 상태
-    DB_CONFIG   m_dbConfig;      // ✅ [추가] DB 접속 정보를 담을 구조체
+    DB_CONFIG   m_dbConfig;
 
     // =========================
     // 멤버 함수
