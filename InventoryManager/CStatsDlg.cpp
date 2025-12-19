@@ -1,5 +1,4 @@
-﻿// === CStatsDlg.cpp (FULL) ===
-#include "pch.h"
+﻿#include "pch.h"
 #include "CStatsDlg.h"
 #include "DBManager.h"
 #include "resource.h"
@@ -65,10 +64,8 @@ BOOL CStatsDlg::OnInitDialog()
     return TRUE;
 }
 
-// [EDIT] CStatsDlg::InitLists() 전체 교체
 void CStatsDlg::InitLists()
 {
-    // [ADD] Report 강제 + OwnerData 끄기
     m_listOrders.ModifyStyle(0, LVS_REPORT);
     m_listBrand.ModifyStyle(0, LVS_REPORT);
     m_listDaily.ModifyStyle(0, LVS_REPORT);
@@ -120,7 +117,6 @@ void CStatsDlg::InitLists()
     m_listBrand.InsertColumn(2, _T("판매량"), LVCFMT_RIGHT, 50);
     m_listBrand.InsertColumn(3, _T("매출액"), LVCFMT_RIGHT, 100);
 
-    // [ADD] 날짜별 총매출
     m_listDaily.DeleteAllItems();
     if (auto* h3 = m_listDaily.GetHeaderCtrl())
         for (int i = h3->GetItemCount() - 1; i >= 0; --i) m_listDaily.DeleteColumn(i);
@@ -204,7 +200,6 @@ void CStatsDlg::LoadStats()
         }
     }
 
-    // [ADD] 날짜별 총매출 (최근 60일)
     {
         CString sql =
             _T("SELECT DATE(o.order_date) AS ymd, ")
@@ -258,7 +253,6 @@ void CStatsDlg::AutoSizeColumns(CListCtrl& list)
     }
 }
 
-// [ADD]
 void CStatsDlg::Reload()
 {
     InitLists();

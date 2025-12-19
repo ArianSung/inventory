@@ -1,4 +1,3 @@
-// === CStatsDlg.h (PATCH) ===
 #pragma once
 #include <vector>
 #include "resource.h"
@@ -25,21 +24,17 @@ protected:
     virtual BOOL OnInitDialog();
     DECLARE_MESSAGE_MAP()
 
-    // ===== UI =====
     CListCtrl m_listOrders;
     CListCtrl m_listBrand;
-    CListCtrl m_listDaily;          // [ADD] 날짜별 총매출 리스트
-    CDateTimeCtrl m_dtpStart;       // 시작일 DateTimePicker
-    CDateTimeCtrl m_dtpEnd;         // 종료일 DateTimePicker
+    CListCtrl m_listDaily;
+    CDateTimeCtrl m_dtpStart;
+    CDateTimeCtrl m_dtpEnd;
 
-    // ===== 헬퍼 =====
     void AutoSizeColumns(CListCtrl& list);
 
-    // ===== DB =====
     CDBManager* m_pDB = nullptr;
     BOOL        m_bDBConnected = FALSE;
 
-    // ===== 내부 =====
     void InitLists();
     void LoadStats();
 

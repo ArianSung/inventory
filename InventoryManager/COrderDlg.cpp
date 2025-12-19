@@ -51,9 +51,9 @@ BOOL COrderDlg::OnInitDialog()
 	CString strStatus;
 	if (m_nCurrentStock == 0)
 		strStatus = _T("(품절)");
-	else if (m_nCurrentStock < m_nDangerThreshold)  // 하드코딩된 10 대신 변수 사용
+	else if (m_nCurrentStock < m_nDangerThreshold)
 		strStatus = _T("(위험)");
-	else if (m_nCurrentStock < m_nWarningThreshold) // 하드코딩된 30 대신 변수 사용
+	else if (m_nCurrentStock < m_nWarningThreshold)
 		strStatus = _T("(주의)");
 	else
 		strStatus = _T("(정상)");
@@ -83,9 +83,9 @@ void COrderDlg::UpdateExpectedStock()
 	CString strStatus;
 	if (nExpected == 0)
 		strStatus = _T("(품절)");
-	else if (nExpected < m_nDangerThreshold)  // 하드코딩된 10 대신 변수 사용
+	else if (nExpected < m_nDangerThreshold)
 		strStatus = _T("(위험)");
-	else if (nExpected < m_nWarningThreshold) // 하드코딩된 30 대신 변수 사용
+	else if (nExpected < m_nWarningThreshold)
 		strStatus = _T("(주의)");
 	else
 		strStatus = _T("(정상)");
