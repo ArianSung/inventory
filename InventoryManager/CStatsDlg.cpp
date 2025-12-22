@@ -101,7 +101,7 @@ void CStatsDlg::InitLists()
     //m_listBrand.InsertColumn(1, _T("판매수량"), LVCFMT_RIGHT, 80);
     //m_listBrand.InsertColumn(2, _T("매출"), LVCFMT_LEFT, 100);
 
-    //// [ADD] 날짜별 총매출
+    //// 날짜별 총매출
     //m_listDaily.DeleteAllItems();
     //if (auto* h3 = m_listDaily.GetHeaderCtrl())
     //    for (int i = h3->GetItemCount() - 1; i >= 0; --i) m_listDaily.DeleteColumn(i);

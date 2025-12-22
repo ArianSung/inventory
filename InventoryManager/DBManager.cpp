@@ -547,12 +547,6 @@ BOOL CDBManager::SelectToRows(const CString& sql, std::vector<std::vector<CStrin
 	return TRUE;
 }
 
-/**
- * @brief 여러 품목의 재고를 한 번에 추가합니다. (일괄 발주)
- * @param vecOptionIDs 재고를 추가할 option_id의 벡터
- * @param nQuantity 각 품목에 추가할 수량
- * @return BOOL 성공 시 TRUE, 실패 시 FALSE
- */
 BOOL CDBManager::AddStockToItems(const std::vector<int>& vecOptionIDs, int nQuantity)
 {
 	if (!m_bConnected) {
@@ -581,11 +575,6 @@ BOOL CDBManager::AddStockToItems(const std::vector<int>& vecOptionIDs, int nQuan
 	return ExecuteQuery(strQuery);
 }
 
-/**
- * @brief [새 함수] 여러 상품 옵션을 삭제하고, 마지막 옵션일 경우 부모 상품까지 정리합니다.
- * @param vecOptionIDs 삭제할 option_id의 벡터
- * @return BOOL 모든 작업이 성공하면 TRUE, 하나라도 실패하면 FALSE
- */
 BOOL CDBManager::DeleteOptionsAndCleanup(const std::vector<int>& vecOptionIDs)
 {
 	if (!m_bConnected) {

@@ -32,11 +32,6 @@ static CString ToLower(const CString& s) {
 
 // CInventoryManagerDlg 대화 상자 클래스 정의 시작
 
-/**
- * @brief CInventoryManagerDlg 클래스의 생성자입니다.
- * @details 대화 상자가 생성될 때 가장 먼저 호출되며, 멤버 변수들을 초기값으로 설정합니다.
- * @param pParent 부모 윈도우를 가리키는 포인터입니다. 기본값은 nullptr입니다.
- */
 CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_INVENTORYMANAGER_DIALOG, pParent)
 	, m_nCurrentTab(0) // 현재 선택된 탭 인덱스 (0: 재고현황)
@@ -61,11 +56,6 @@ CInventoryManagerDlg::CInventoryManagerDlg(CWnd* pParent /*=nullptr*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
-/**
- * @brief CInventoryManagerDlg 클래스의 소멸자입니다.
- * @details 대화 상자가 파괴될 때 호출되며, 할당된 리소스들을 해제합니다.
- * (예: 타이머 종료, 데이터베이스 연결 해제, 동적 할당된 메모리 해제)
- */
 CInventoryManagerDlg::~CInventoryManagerDlg()
 {
 	DisconnectDatabase(); // 데이터베이스 연결 해제
@@ -80,11 +70,6 @@ CInventoryManagerDlg::~CInventoryManagerDlg()
 	}
 }
 
-/**
- * @brief DoDataExchange 함수는 대화 상자의 컨트롤과 멤버 변수 간의 데이터 교환을 담당합니다.
- * @details DDX (Dialog Data Exchange) 매커니즘을 통해 UI 컨트롤과 변수를 연결합니다.
- * @param pDX 데이터 교환을 위한 CDataExchange 객체 포인터입니다.
- */
 void CInventoryManagerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
@@ -126,12 +111,6 @@ END_MESSAGE_MAP()
 
 // CInventoryManagerDlg 메시지 처리기 (핸들러 함수) 구현부
 
-/**
- * @brief 대화 상자가 처음 생성될 때 호출되는 초기화 함수입니다.
- * @details 이 곳에서 UI 컨트롤의 초기 상태 설정, 데이터베이스 연결, 초기 데이터 로드 등
- * 프로그램 시작에 필요한 대부분의 작업을 수행합니다.
- * @return BOOL 성공 시 TRUE, 실패 시 FALSE를 반환합니다.
- */
 BOOL CInventoryManagerDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -268,10 +247,6 @@ BOOL CInventoryManagerDlg::OnInitDialog()
 	return TRUE;
 }
 
-/**
- * @brief WM_PAINT 메시지 핸들러. 창을 다시 그려야 할 때 호출됩니다.
- * @details 창이 최소화되었을 때 아이콘을 그리고, 그 외에는 기본 그리기 동작을 수행합니다.
- */
 void CInventoryManagerDlg::OnPaint()
 {
 	if (IsIconic()) // 창이 최소화 상태인지 확인
@@ -292,18 +267,11 @@ void CInventoryManagerDlg::OnPaint()
 	}
 }
 
-/**
- * @brief WM_QUERYDRAGICON 메시지 핸들러. 최소화된 창을 드래그할 때 표시할 커서(아이콘)를 반환합니다.
- */
 HCURSOR CInventoryManagerDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-/**
- * @brief 로그 메시지를 로그창(에디트 컨트롤)에 추가하는 함수입니다.
- * @param strLog 추가할 로그 문자열입니다.
- */
 void CInventoryManagerDlg::AddLog(CString strLog)
 {
 	CTime time = CTime::GetCurrentTime();
@@ -326,18 +294,12 @@ void CInventoryManagerDlg::AddLog(CString strLog)
 	m_editLog.SendMessage(EM_SCROLLCARET, 0, 0);
 }
 
-/**
- * @brief 로그창의 모든 내용을 지웁니다.
- */
 void CInventoryManagerDlg::ClearLog()
 {
 	m_editLog.SetWindowText(_T(""));
 	AddLog(_T("로그를 지웠습니다."));
 }
 
-/**
- * @brief 메인 탭 컨트롤을 초기화하고 탭 아이템들을 추가합니다.
- */
 void CInventoryManagerDlg::InitTabs()
 {
 	m_tabMain.DeleteAllItems(); // 기존 탭 모두 삭제
@@ -348,17 +310,11 @@ void CInventoryManagerDlg::InitTabs()
 	m_nCurrentTab = 0;
 }
 
-/**
- * @brief '로그 지우기' 버튼 클릭 이벤트 핸들러입니다.
- */
 void CInventoryManagerDlg::OnBnClickedButtonClearLog()
 {
 	ClearLog();
 }
 
-/**
- * @brief '새로고침' 버튼 클릭 이벤트 핸들러입니다.
- */
 void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 {
 	AddLog(_T("🔄 수동 새로고침 실행"));
@@ -380,10 +336,6 @@ void CInventoryManagerDlg::OnBnClickedButtonRefresh()
 	}
 }
 
-/**
- * @brief 탭 선택 변경 이벤트 핸들러입니다.
- * @details 사용자가 다른 탭을 클릭했을 때 호출됩니다.
- */
 void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 {
 	m_nCurrentTab = m_tabMain.GetCurSel(); // 선택된 탭의 인덱스를 가져옵니다.
@@ -401,9 +353,6 @@ void CInventoryManagerDlg::OnSelchangeTabMain(NMHDR*, LRESULT* pResult)
 	*pResult = 0;
 }
 
-/**
- * @brief 데이터베이스 연결을 설정하는 함수입니다.
- */
 void CInventoryManagerDlg::ConnectDatabase()
 {
 	// CDBManager는 싱글톤 패턴으로 구현되어, 프로그램 전체에서 단 하나의 인스턴스만 존재합니다.
@@ -446,9 +395,6 @@ void CInventoryManagerDlg::ConnectDatabase()
 	}
 }
 
-/**
- * @brief 데이터베이스 연결을 해제하는 함수입니다.
- */
 void CInventoryManagerDlg::DisconnectDatabase()
 {
 	if (m_pDBManager != nullptr && m_bDBConnected)
@@ -459,10 +405,6 @@ void CInventoryManagerDlg::DisconnectDatabase()
 	}
 }
 
-/**
- * @brief 데이터베이스 연결이 활성 상태인지 테스트하는 함수입니다.
- * @return BOOL 연결이 유효하면 TRUE, 아니면 FALSE를 반환합니다.
- */
 BOOL CInventoryManagerDlg::TestConnection()
 {
 	if (!m_bDBConnected || m_pDBManager == nullptr)
@@ -489,9 +431,6 @@ BOOL CInventoryManagerDlg::TestConnection()
 	}
 }
 
-/**
- * @brief 데이터베이스에서 모든 재고 데이터를 가져와 m_vecInventory 벡터에 저장합니다.
- */
 void CInventoryManagerDlg::LoadInventoryData()
 {
 	if (!m_bDBConnected || m_pDBManager == nullptr)
@@ -547,9 +486,6 @@ void CInventoryManagerDlg::LoadInventoryData()
 	}
 }
 
-/**
- * @brief 재고 데이터를 새로고침합니다. (기존 데이터 삭제 -> 새로 로드 -> 화면 갱신 -> 캐시 갱신)
- */
 void CInventoryManagerDlg::RefreshInventoryData()
 {
 	m_vecInventory.clear(); // 기존 메모리 내 재고 데이터 삭제
@@ -558,10 +494,6 @@ void CInventoryManagerDlg::RefreshInventoryData()
 	SnapshotDisplayToCache();   // 검색/정렬을 위한 캐시 갱신
 }
 
-/**
- * @brief 재고 목록 리스트 컨트롤(CListCtrl)을 초기화합니다.
- * @details 컬럼 헤더(제목)를 생성하고, 리스트의 스타일을 설정합니다.
- */
 void CInventoryManagerDlg::InitInventoryList()
 {
 	AddLog(_T("🔍 InitInventoryList 시작"));
@@ -602,9 +534,6 @@ void CInventoryManagerDlg::InitInventoryList()
 	else                     AddLog(_T("❌ 재고 리스트 초기화 실패 (컬럼 개수 불일치)"));
 }
 
-/**
- * @brief m_vecInventory 벡터에 저장된 데이터로 리스트 컨트롤 화면을 채웁니다.
- */
 void CInventoryManagerDlg::UpdateInventoryList()
 {
 	AddLog(_T("🔍 UpdateInventoryList 시작"));
@@ -679,9 +608,6 @@ void CInventoryManagerDlg::UpdateInventoryList()
 	AddLog(strLog);
 }
 
-/**
- * @brief '발주' 버튼 클릭 이벤트 핸들러입니다. (단일/일괄 발주 지원)
- */
 void CInventoryManagerDlg::OnBnClickedButtonOrder()
 {
 	int nSelectedCount = m_listInventory.GetSelectedCount();
@@ -792,10 +718,6 @@ void CInventoryManagerDlg::OnBnClickedButtonOrder()
 	}
 }
 
-/**
- * @brief WM_CLOSE 메시지 핸들러. 창이 닫힐 때 호출됩니다.
- * @details 안전한 종료를 위해 DB 연결 해제 등의 마무리 작업을 수행합니다.
- */
 void CInventoryManagerDlg::OnClose()
 {
 	AddLog(_T("🚪 프로그램 종료 요청"));
@@ -819,9 +741,6 @@ void CInventoryManagerDlg::OnClose()
 	CDialogEx::OnClose(); // 기본 닫기 동작 수행
 }
 
-/**
- * @brief 리스트 항목 더블 클릭 이벤트 핸들러입니다. (재고 수량 직접 수정 기능)
- */
 void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	// 여러 항목이 선택된 경우, 재고 수정 기능을 실행하지 않고 즉시 종료합니다.
@@ -893,10 +812,6 @@ void CInventoryManagerDlg::OnDblclkListInventory(NMHDR* pNMHDR, LRESULT* pResult
 	*pResult = 0;
 }
 
-/**
- * @brief [전면 수정] '삭제' 버튼(IDC_BUTTON2) 클릭 이벤트 핸들러입니다.
- * 요구사항에 맞춰 옵션 삭제 및 마지막 옵션일 경우 상품까지 삭제하도록 변경되었습니다.
- */
 void CInventoryManagerDlg::OnBnClickedButton2()
 {
 	// 리스트에서 선택된 모든 항목의 위치(POSITION)를 가져옵니다.
@@ -967,9 +882,6 @@ void CInventoryManagerDlg::OnBnClickedButton2()
 }
 
 
-/**
- * @brief '상품 추가' 버튼(IDC_BUTTON3) 클릭 이벤트 핸들러입니다.
- */
 void CInventoryManagerDlg::OnBnClickedButton3()
 {
 	AddLog(_T("'상품 추가' 대화상자를 엽니다."));
@@ -985,18 +897,11 @@ void CInventoryManagerDlg::OnBnClickedButton3()
 	}
 }
 
-/**
- * @brief '검색' 버튼 클릭 이벤트 핸들러입니다.
- */
 void CInventoryManagerDlg::OnBnClickedBtnSearch()
 {
 	ApplyFiltersAndSearch();
 }
 
-/**
- * @brief 키보드 입력을 가로채는 함수입니다.
- * @details 검색창(IDC_EDIT_SEARCH)에서 엔터 키를 눌렀을 때 검색을 실행하기 위해 사용됩니다.
- */
 BOOL CInventoryManagerDlg::PreTranslateMessage(MSG* pMsg)
 {
 	if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
@@ -1011,18 +916,11 @@ BOOL CInventoryManagerDlg::PreTranslateMessage(MSG* pMsg)
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
-/**
- * @brief 필터 콤보 박스 선택 변경 이벤트 핸들러입니다.
- */
 void CInventoryManagerDlg::OnSelchangeComboFilter()
 {
 	ApplyFiltersAndSearch();
 }
 
-/**
- * @brief 현재 리스트 컨트롤에 표시된 모든 데이터를 m_allRowsDisplay 벡터에 복사(캐시)합니다.
- * @details DB를 다시 읽지 않고, 메모리에 있는 캐시 데이터로 검색/정렬을 빠르게 수행하기 위함입니다.
- */
 void CInventoryManagerDlg::SnapshotDisplayToCache()
 {
 	m_allRowsDisplay.clear(); // 기존 캐시 삭제
@@ -1049,11 +947,6 @@ void CInventoryManagerDlg::SnapshotDisplayToCache()
 	}
 }
 
-/**
- * @brief 캐시된 데이터(DisplayRow 벡터)를 리스트 컨트롤 화면에 표시합니다.
- * @details 검색 또는 정렬된 결과를 화면에 보여줄 때 사용됩니다.
- * @param rows 화면에 표시할 행 데이터의 벡터입니다.
- */
 void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows)
 {
 	m_listInventory.SetRedraw(FALSE); // 화면 갱신 중지
@@ -1077,10 +970,6 @@ void CInventoryManagerDlg::ShowRowsFromCache(const std::vector<DisplayRow>& rows
 }
 
 
-/**
- * @brief 선택된 탭에 따라 관련된 UI 컨트롤들을 보여주거나 숨깁니다.
- * @param idx 보여줄 탭의 인덱스입니다. (0: 재고, 1: 통계, 2: 설정)
- */
 void CInventoryManagerDlg::ShowTabPage(int idx)
 {
 	const bool showInventory = (idx == 0);
@@ -1126,9 +1015,6 @@ void CInventoryManagerDlg::ShowTabPage(int idx)
 	}
 }
 
-/**
- * @brief 필터와 검색어를 적용하여 리스트를 갱신하는 핵심 함수입니다.
- */
 void CInventoryManagerDlg::ApplyFiltersAndSearch()
 {
 	// 1. 현재 필터 콤보 박스에서 선택된 값을 가져옵니다.
@@ -1208,9 +1094,6 @@ void CInventoryManagerDlg::ApplyFiltersAndSearch()
 	ShowRowsFromCache(filteredRows);
 }
 
-/**
- * @brief 리스트 컬럼 헤더 클릭 이벤트 핸들러 (정렬 기능)
- */
 void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
@@ -1276,12 +1159,6 @@ void CInventoryManagerDlg::OnColumnclickListInventory(NMHDR* pNMHDR, LRESULT* pR
 	*pResult = 0;
 }
 
-/**
- * @brief '설정' 탭에서 변경된 재고 기준치를 메인 다이얼로그에 적용하는 함수입니다.
- * @details CSettingsDlg에서 이 함수를 호출하여 메인 다이얼로그의 상태를 변경합니다.
- * @param nWarning 새로운 '주의' 기준값
- * @param nDanger 새로운 '위험' 기준값
- */
 void CInventoryManagerDlg::UpdateThresholds(int nWarning, int nDanger)
 {
 	// 메인 다이얼로그의 멤버 변수를 업데이트합니다.
